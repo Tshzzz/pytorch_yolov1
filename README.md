@@ -12,7 +12,7 @@
 	the training logs.
 
 ### Highlights:
-	![imgs](https://github.com/Tshzzz/pytorch_yolov1/raw/master/imgs/000000001319.jpg)
+	![imgs](http://github.com/Tshzzz/pytorch_yolov1/raw/master/imgs/000000001319.jpg)
 	![imgs](https://github.com/Tshzzz/pytorch_yolov1/raw/master/imgs/000000001237.jpg)
 	![imgs](https://github.com/Tshzzz/pytorch_yolov1/raw/master/imgs/000000001591.jpg)
 	![imgs](https://github.com/Tshzzz/pytorch_yolov1/raw/master/imgs/000000000692.jpg)
