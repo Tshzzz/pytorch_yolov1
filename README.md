@@ -8,7 +8,7 @@
 	I train 100 epochs with lr 0.0001.
 	You can reset the train parameter to train your datasets.
 	git push -u origin master
-	![imgs](https://github.com/Tshzzz/pytorch_yolov1/imgs/train_log.png)
+	![imgs](https://raw.githubusercontent.com/Tshzzz/pytorch_yolov1/master/imgs/train_log.png)
 	the training logs.
 
 ### Highlights:
