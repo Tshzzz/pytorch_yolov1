@@ -11,14 +11,16 @@ import os
 from tqdm import tqdm
 import numpy as np
 
-root_dir = './'
+root_dir = os.getcwd()+'/'
 
 
-sets = [('person','trainval_all')]
+sets = [('2012','train'),('2007','train')]
 
 
-classes = ["person"]
-
+#classes = ["person"]
+classes = ["aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", 
+           "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", 
+           "pottedplant", "sheep", "sofa", "train", "tvmonitor"]
 
 def convert_bb(size,b):
     x = (b[0] + b[2])/2.0
@@ -80,12 +82,12 @@ for data_ in sets:
         label_file = root_dir + 'VOC%s/Label/%s.txt'%(data_[0],xml_name)
         img_file = root_dir + 'VOC%s/JPEGImages/%s.jpg'%(data_[0],xml_name)
         convert_xml(file_path,label_file)
-            
-            
+        
+        
         file_writer += img_file+' '+label_file+'\n'
-        if i % 10000 == 0:    
-            data_list.write(file_writer)       
-            file_writer = ''
+        #if i % 100 == 0 or 100 - i < len(name_list):    
+    data_list.write(file_writer)       
+    file_writer = ''
         
     
     data_list.close()

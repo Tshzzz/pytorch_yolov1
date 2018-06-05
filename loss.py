@@ -168,11 +168,8 @@ class yolov1_loss(nn.Module):
         
 
         obj_contain_loss = F.mse_loss(obj_axis_pred[:,4],max_iou,size_average=False)     
-   
-        
+           
         no_obj_contain_loss = F.mse_loss(no_obj_contain_pred,no_obj_contain_target,size_average=False)
-        
-
 
         iou_loss =  F.mse_loss(max_iou,obj_axis_target[:,4],size_average=False)
 

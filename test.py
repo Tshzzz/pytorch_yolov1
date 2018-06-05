@@ -85,7 +85,7 @@ def decoder_(pred):
             for j in range(7):  
                 cls_prob,cls = pred[k,i,j,5*bb_num:].max(0)
                 if max_prob[k,i,j].data.numpy() * cls_prob.data.numpy() > 0.5:
-                    print(max_prob[k,i,j].data.numpy() * cls_prob.data.numpy())
+                    print(max_prob[k,i,j].data.numpy() )
                     max_prob_index_np = max_prob_index[k,i,j].data.numpy()
 
                     bbox = pred[k , i , j , max_prob_index_np*5 : max_prob_index_np*5 + 5+1].contiguous().data   
@@ -107,11 +107,12 @@ def predict_gpu(model,image_name,root_path=''):
 
     image = cv2.imread(root_path+image_name)
     h,w,_ = image.shape
-    img = cv2.resize(image,(448,448))
+    img = cv2.resize(image,(448,448)) 
     
 
     mean = (123,117,104)#RGB
-    img = img - np.array(mean,dtype=np.float32)
+    std = (58.4, 57.12, 57.375)
+    img = img - np.array(mean,dtype=np.float32)/ (np.array(std,dtype=np.float32))
 
     transform = transforms.Compose([transforms.ToTensor(),])
     img = transform(img)
@@ -164,13 +165,16 @@ if __name__ == '__main__':
     import os
 
     model = YOLO(1,3,False)
-    
-    model.load_state_dict(torch.load('./models/model_.pkl98'))
+    model.eval()
+    model.load_state_dict(torch.load('./models/model_.pkl50'))
     model.cuda()
+    
     test_path = list(map(lambda x: os.path.join('./test_images', x), os.listdir('./test_images')))
     for image_name in test_path:
         save_name = image_name.split('/')[-1]
         image = cv2.imread(image_name)
+        
+        
         boxes = predict_gpu(model,image_name)
         image,num = plot_boxes_cv2(image, boxes, savename='samples/'+save_name, class_names=classes, color=None)
         cv2.namedWindow('result')
