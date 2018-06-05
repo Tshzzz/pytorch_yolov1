@@ -1,6 +1,8 @@
 ## Yolo v1: 
 It's too hard to train yolo v1. I'm still can't recurrent the accuracy in voc datasets. 
 
+I train on voc2012 trainsets , the mAp on trainsets can reach to 80. but on the testsets it only has 30. 
+
 I train a single class detect net in coco datasets , it works but still not well. 
 
 I think the yolo has too few boxes to predict the object , and hard to learn the matching strategies.
