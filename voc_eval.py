@@ -5,8 +5,8 @@
 # --------------------------------------------------------
 
 import xml.etree.ElementTree as ET
-import os,sys
-import cPickle
+import os
+import pickle
 import numpy as np
 
 def parse_rec(filename):
@@ -108,16 +108,16 @@ def voc_eval(detpath,
         for i, imagename in enumerate(imagenames):
             recs[imagename] = parse_rec(annopath.format(imagename))
             if i % 100 == 0:
-                print 'Reading annotation for {:d}/{:d}'.format(
-                    i + 1, len(imagenames))
+                print('Reading annotation for {:d}/{:d}'.format(
+                    i + 1, len(imagenames)))
         # save
-        print 'Saving cached annotations to {:s}'.format(cachefile)
-        with open(cachefile, 'w') as f:
-            cPickle.dump(recs, f)
+        print('Saving cached annotations to {:s}'.format(cachefile))
+        with open(cachefile, 'wb') as f:
+            pickle.dump(recs, f)
     else:
         # load
-        with open(cachefile, 'r') as f:
-            recs = cPickle.load(f)
+        with open(cachefile, 'rb') as f:
+            recs = pickle.load(f)
 
     # extract gt objects for this class
     class_recs = {}
@@ -202,7 +202,7 @@ def voc_eval(detpath,
 
 
 def _do_python_eval(res_prefix, output_dir = 'output'):
-    _devkit_path = '/home/vl-tshzzz/ImageDataSet/VOCdevkit'
+    _devkit_path = './build_data/VOCdevkit'
     _year = '2007'
     _classes = ('__background__', # always index 0
         'aeroplane', 'bicycle', 'bird', 'boat',
@@ -222,12 +222,12 @@ def _do_python_eval(res_prefix, output_dir = 'output'):
         'VOC' + _year,
         'ImageSets',
         'Main',
-        'train.txt')
+        'test.txt')
     cachedir = os.path.join(_devkit_path, 'annotations_cache')
     aps = []
     # The PASCAL VOC metric changed in 2010
     use_07_metric = True if int(_year) < 2010 else False
-    print 'VOC07 metric? ' + ('Yes' if use_07_metric else 'No')
+    print('VOC07 metric? ' + ('Yes' if use_07_metric else 'No'))
     if not os.path.isdir(output_dir):
         os.mkdir(output_dir)
     for i, cls in enumerate(_classes):
@@ -239,8 +239,8 @@ def _do_python_eval(res_prefix, output_dir = 'output'):
             use_07_metric=use_07_metric)
         aps += [ap]
         print('AP for {} = {:.4f}'.format(cls, ap))
-        with open(os.path.join(output_dir, cls + '_pr.pkl'), 'w') as f:
-            cPickle.dump({'rec': rec, 'prec': prec, 'ap': ap}, f)
+        with open(os.path.join(output_dir, cls + '_pr.pkl'), 'wb') as f:
+            pickle.dump({'rec': rec, 'prec': prec, 'ap': ap}, f)
     print('Mean AP = {:.4f}'.format(np.mean(aps)))
     print('~~~~~~~~')
     print('Results:')
@@ -255,6 +255,53 @@ def _do_python_eval(res_prefix, output_dir = 'output'):
     print('Recompute with `./tools/reval.py --matlab ...` for your paper.')
     print('-- Thanks, The Management')
     print('--------------------------------------------------------------')
+    
+def _do_python_eval_quite(res_prefix, output_dir = 'output'):
+    
+    _devkit_path = './build_data/VOCdevkit'
+    _year = '2007'
+    _classes = ('__background__', # always index 0
+        'aeroplane', 'bicycle', 'bird', 'boat',
+        'bottle', 'bus', 'car', 'cat', 'chair',
+        'cow', 'diningtable', 'dog', 'horse',
+        'motorbike', 'person', 'pottedplant',
+        'sheep', 'sofa', 'train', 'tvmonitor') 
+        #filename = '/data/hongji/darknet/results/comp4_det_test_{:s}.txt' 
+    filename = res_prefix + '{:s}.txt'
+    annopath = os.path.join(
+        _devkit_path,
+        'VOC' + _year,
+        'Annotations',
+        '{:s}.xml')
+    imagesetfile = os.path.join(
+        _devkit_path,
+        'VOC' + _year,
+        'ImageSets',
+        'Main',
+        'test.txt')
+    cachedir = os.path.join(_devkit_path, 'annotations_cache')
+    aps = []
+    
+    result = dict()
+    # The PASCAL VOC metric changed in 2010
+    use_07_metric = True if int(_year) < 2010 else False
+    #print('VOC07 metric? ' + ('Yes' if use_07_metric else 'No'))
+    if not os.path.isdir(output_dir):
+        os.mkdir(output_dir)
+    for i, cls in enumerate(_classes):
+        if cls == '__background__':
+            continue
+        
+        rec, prec, ap = voc_eval(
+            filename, annopath, imagesetfile, cls, cachedir, ovthresh=0.5,
+            use_07_metric=use_07_metric)
+        aps += [ap]
+        #print('AP for {} = {:.4f}'.format(cls, ap))
+        result[cls] = ap
+        with open(os.path.join(output_dir, cls + '_pr.pkl'), 'wb') as f:
+            pickle.dump({'rec': rec, 'prec': prec, 'ap': ap}, f)
+            
+    return result
 
 
 if __name__ == '__main__':

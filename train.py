@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 Created on Mon Mar 12 13:12:23 2018
@@ -7,74 +7,84 @@ Created on Mon Mar 12 13:12:23 2018
 """
 
 import torch
-from logger import Logger
-
-
 import voc_datasets
-
-from torch.autograd import Variable
 import torch.optim as optim
-
 from tqdm import tqdm
-
 from loss import yolov1_loss
 from torch.optim.lr_scheduler import MultiStepLR
-
-from eval_net import test_net
-
-epochs_start = 7
-epochs_end = 9
-batch_size = 32
-cls_num = 20
-max_update_batch = 1
-
-
 from network import YOLO
+from vaild import eval_f1,eval_mAp
+import config
+import numpy as np
+from tensorboardX import SummaryWriter
 
 
-net = YOLO(cls_num,3,conv_model = False)
+epochs_start = config.epochs_start
+epochs_end = config.epochs_end
+batch_size = config.batch_size
+cls_num = config.cls_num
+bbox_num = config.bbox_num
+start_lr = config.lr
+train_image_list = config.train_image_list
+eval_image_list= config.eval_image_list
+model_path = config.model_path
+model_save_iter = config.model_save_iter
+l_coord = config.l_coord
+l_noobj = config.l_noobj
+scale_size = config.box_scale
+conv_model = config.use_conv
+
+
+
+
+if epochs_start == 0:
+    net = YOLO(cls_num,bbox_num,scale_size,conv_model = conv_model)
+else:
+    net = YOLO(cls_num,bbox_num,scale_size,conv_model = conv_model)
+    
 net.cuda()
 net.train()
+
 if epochs_start > 0:
-    net.load_state_dict(torch.load('./models/fc_models/model_.pkl{0}'.format(epochs_start)))
+    net.load_state_dict(torch.load(model_path+'model_.pkl'))
 print("load model successfully")
 
-train_loader =  voc_datasets.get_loader('./','train_list/train_voc.txt',True,448,batch_size,8)
-test_loader =  voc_datasets.get_test_loader('./','train_list/eval_train_voc.txt',448,1,3)
+train_loader = voc_datasets.get_loader(train_image_list,448,batch_size,True,8)
 
-start_lr = 3e-3#0.0005 0.00005
-#0.005
+test_loader = voc_datasets.get_loader(eval_image_list,448,1,False,8)
+
 optimizer = optim.SGD(net.parameters(), lr=start_lr, momentum=0.9, weight_decay=5e-4)
+scheduler = MultiStepLR(optimizer, milestones=[75,105],gamma=0.1)
 
-scheduler = MultiStepLR(optimizer, milestones=[1,2,3],gamma=1.5)
 
-loss_detect = yolov1_loss(7,3,5,0.5,cls_num)
-logger = Logger('./logs')
-
+loss_detect = yolov1_loss(bbox_num,l_coord,l_noobj,cls_num)
+logger = SummaryWriter()
 step = epochs_start * len(train_loader)
+
+best_score = 0 
+eval_score = 0
+
 
 for epoch in range(epochs_start,epochs_end):
     epoch_loss = 0
     train_iterator = tqdm(train_loader)
     mulit_batch_ = 0
     
-    for train_batch,(images,label) in enumerate(train_iterator):
-        label = label.cuda()
-        label = Variable(label)
+        
+    for train_batch,(images,label_cls,label_response,label_bboxes,fname) in enumerate(train_iterator):
+        
+        label_cls = label_cls.cuda().float()
+        label_response = label_response.cuda().float()
+        label_bboxes = label_bboxes.cuda().float()
         
         images = images.cuda()
-        images = Variable(images)
         
-        
-        pred = net(images).type(torch.cuda.DoubleTensor)
+        pred_cls,pred_response,pred_bboxes = net(images)
 
-        #if mulit_batch_ == 0:
-        loss_xx,loss_info = loss_detect(pred,label)
-        #mulit_batch_ = loss_xx
-        #else:
-        #    loss_xx,loss_info = loss_detect(pred,label)
-        #    mulit_batch_ += loss_xx
-            
+        loss_xx,loss_info = loss_detect(pred_cls,pred_response,pred_bboxes,label_cls,label_response,label_bboxes)
+
+        assert not np.isnan(loss_xx.data.cpu().numpy())
+
         epoch_loss += loss_xx
         
         status = '[{0}] lr = {1} batch_loss = {2} epoch_loss = {3} '.format(
@@ -83,34 +93,35 @@ for epoch in range(epochs_start,epochs_end):
         train_iterator.set_description(status)
 
         for tag, value in loss_info.items():
-            logger.scalar_summary(tag, value, step)
-        loss_xx.backward()      
+            logger.add_scalar(tag, value, step)
+            
+        loss_xx.backward()  
+
+
         optimizer.step()
         optimizer.zero_grad()
         step += 1
-        
-    if epoch % 5 == 0 and epoch > 10:
+
+    
+    if epoch % 1 == 0 :
         print("Evaluate~~~~~   ")
         net.eval()
-        test_net(net,test_loader,iou_thresh=0.5)
+        eval_score,recall,precision = eval_f1(net,test_loader,iou_thresh=0.5)
+        
         net.train()
-    if epoch % 5 == 0:    
-        torch.save(net.state_dict(),"./models/fc_models/model_.pkl"+repr(epoch+1))
+        
+    if best_score < eval_score:  
+        best_f1_score = eval_score 
+        torch.save(net.state_dict(),model_path+"model_.pkl")
+        
+    print("precision: %f, recall: %f, fscore: %f, best_f1: %f" % (precision, recall, eval_score,best_score))
+    
     scheduler.step()
     
     
+print(best_f1_score)    
     
-torch.save(net.state_dict(),"./models/fc_models/model_.pkl"+repr(epoch+1))
-
-
-
-
-
-
-
-
-
-
+torch.save(net.state_dict(),model_path+"model_.pkl"+repr(epoch+1))
 
 
 

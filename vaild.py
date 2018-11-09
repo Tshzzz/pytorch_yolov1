@@ -6,153 +6,89 @@ Created on Tue May 22 22:05:18 2018
 @author: vl-tshzzz
 """
 
-#!/usr/bin/env python2
-# -*- coding: utf-8 -*-
-"""
-Created on Sun May 20 15:42:19 2018
-
-@author: vl-tshzzz
-"""
-
 import torch
-from torch.autograd import Variable
-import torch.nn as nn
-
-
 from tqdm import tqdm
-
-import torchvision.transforms as transforms
 import cv2
 import numpy as np
-from network import YOLO,TinyYOLO
-import torch.nn.functional as F
+from network import YOLO
 import voc_datasets
-
-classes = ["aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", 
-           "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", 
-           "pottedplant", "sheep", "sofa", "train", "tvmonitor"]
-
-#classes = ["person"]
+from util import decoder_vaild,decoder_,bbox_iou
+import os
+import config
 
 
-def bbox_iou(box1, box2, x1y1x2y2=True):
-    if x1y1x2y2:
-        mx = min(box1[0], box2[0])
-        Mx = max(box1[2], box2[2])
-        my = min(box1[1], box2[1])
-        My = max(box1[3], box2[3])
-        w1 = box1[2] - box1[0]
-        h1 = box1[3] - box1[1]
-        w2 = box2[2] - box2[0]
-        h2 = box2[3] - box2[1]
-    else:
-        mx = min(box1[0]-box1[2]/2.0, box2[0]-box2[2]/2.0)
-        Mx = max(box1[0]+box1[2]/2.0, box2[0]+box2[2]/2.0)
-        my = min(box1[1]-box1[3]/2.0, box2[1]-box2[3]/2.0)
-        My = max(box1[1]+box1[3]/2.0, box2[1]+box2[3]/2.0)
-        w1 = box1[2]
-        h1 = box1[3]
-        w2 = box2[2]
-        h2 = box2[3]
-    uw = Mx - mx
-    uh = My - my
-    cw = w1 + w2 - uw
-    ch = h1 + h2 - uh
-    carea = 0
-    if cw <= 0 or ch <= 0:
-        return 0.0
+from voc_eval import _do_python_eval_quite
 
-    area1 = w1 * h1
-    area2 = w2 * h2
-    carea = cw * ch
-    uarea = area1 + area2 - carea
-    return carea/uarea
-
-def nms(boxes, nms_thresh):
-    if len(boxes) == 0:
-        return boxes
-    #print(boxes)
-    det_confs = torch.zeros(len(boxes))
-    for i in range(len(boxes)):
-        det_confs[i] = 1-boxes[i][4]                
-
-    _,sortIds = torch.sort(det_confs)
-    out_boxes = []
-    for i in range(len(boxes)):
-        box_i = boxes[sortIds[i]]
-        if box_i[4] > 0:
-            out_boxes.append(box_i)
-            for j in range(i+1, len(boxes)):
-                box_j = boxes[sortIds[j]]
-                if bbox_iou(box_i, box_j, x1y1x2y2=False) > nms_thresh:
-                    box_j[4] = 0
-    return out_boxes
-
-def decoder_(pred):
-    bb_num = 3
-    cls_num = len(classes)
-    pred = pred.view(-1,7,7,bb_num*5+cls_num)
-    prob = pred[:,:,:,4:bb_num*5:5]
-    max_prob,max_prob_index = prob.max(3)
-    cell_size = 1./7
-    
-    boxes=[]
-
-    for k in range(len(pred)):
-        for i in range(7):
-            for j in range(7):  
-                cls_prob,cls = pred[k,i,j,5*bb_num:].max(0)
-                if max_prob[k,i,j].data.numpy()* cls_prob.data  > 0.1:
-                    max_prob_index_np = max_prob_index[k,i,j].data.numpy()
-
-                    bbox = pred[k , i , j , max_prob_index_np*5 : max_prob_index_np*5 + 5+len(classes)].contiguous().data   
-                    
-                    #bbox[5] = int(cls.data.numpy())
-                    
-                    box_xy = torch.FloatTensor(bbox.size())
-                    box_xy[:2] = bbox[:2] - 0.5*pow(bbox[2:4],2)
-                    box_xy[2:4] = bbox[:2] + 0.5*pow(bbox[2:4],2)
-                    box_xy[4] = max_prob[k,i,j].data #* cls_prob.data
-                    box_xy[5:] = pred[k,i,j,5*bb_num:].data
-                    boxes.append(box_xy.view(1,5+len(classes)).numpy()[0].tolist())
-    boxes = nms(boxes, 0.5)
-    return boxes
-
-def predict_gpu(img):
-
-    pred = model(img) #1x7x7x30
-    #pred = pred.view(-1,7,7,11)
-    pred = pred.cpu()
-    bbox = decoder_(pred)
-    bbox = np.array(bbox)
-    return bbox
- 
-
-
-if __name__ == '__main__':
-    import os
-    prefix = 'results'
-    outfile = "voc"
-    
-    test_list = "VOC2007_train.txt"
-    
-    class_num = len(classes)#20
-    model = YOLO(class_num,3,conv_model = False)
-    model.load_state_dict(torch.load('./models/fc_models/model_.pkl116'))
-    model.cuda()
-    model.eval()
-    batch_size = 1
-    iou_thresh = 0.5
-    eps = 1e-5
-
+def eval_f1(model,loader,iou_thresh=0.5):
     total       = 0.0
     proposals   = 0.0
     correct     = 0.0
+    eps = 1e-5
+    ap = []
+    for images,label in loader:
+        label = label.view(-1,6)
+        images = images.cuda()
+        
+        pred_cls,pred_response,pred_bboxes = model(images) #1x7x7x30
     
-    test_loader =  voc_datasets.get_test_loader('./','train_list/'+test_list,448,batch_size,8)
+        pred_boxes = decoder_(pred_cls.cpu(),pred_response.cpu(),pred_bboxes.cpu())
+        pred_boxes = np.array(pred_boxes)
+    
+        correct_this = 0.0
+        precision_this = 0.0  
+        
+        num_gts = len(label)
+        total = total + num_gts
+        proposals += len(pred_boxes)
+            
+        for i in range(num_gts):
+                
+            box_gt = [label[i][0], label[i][1], label[i][2], label[i][3], label[i][4], label[i][5]]
+                
+            best_iou = 0
+            best_j = -1
+            for j in range(len(pred_boxes)):
+                iou = bbox_iou(box_gt, pred_boxes[j], x1y1x2y2=True)
+                if iou > best_iou:
+                    best_j = j
+                    best_iou = iou
+            
+            if best_iou > iou_thresh and int(pred_boxes[best_j][5]) == int(box_gt[5]):
+                correct = correct+1
+                correct_this += 1.0
+                    
+        precision_this = correct_this/(len(pred_boxes)+eps)
+        recall_this = correct_this/(num_gts+eps)
+        ap.append(min(precision_this,recall_this))
+
+    precision = 1.0*correct/(proposals+eps)
+    recall = 1.0*correct/(total+eps)
+    fscore = 2.0*precision*recall/(precision+recall+eps)
+    
+    #print("precision: %f, recall: %f, fscore: %f" % (precision, recall, fscore))
+    return fscore,recall,precision
+
+
+
+def eval_mAp(model,prefix,outfile,test_list):
+
+    res_prefix = prefix +'/'+outfile
+    test_result(model,prefix,outfile,test_list)
+    #_do_python_eval(res_prefix, output_dir = 'output')
+    result = _do_python_eval_quite(res_prefix, output_dir = 'output')
+    
+    return result
+    
+    
+
+def test_result(model,prefix,outfile,test_list):
+    
+    class_num = config.cls_num
+    
+    test_loader = voc_datasets.get_loader(test_list,448,1,False,1)
     train_iterator = tqdm(test_loader)
     
-    list_file = 'train_list/'+test_list
+    list_file = test_list
     lines = []
     with open(list_file) as f:
         lines = f.readlines()
@@ -161,14 +97,17 @@ if __name__ == '__main__':
     if not os.path.exists('results'):
         os.mkdir('results')
     for i in range(class_num):
-        buf = '%s/%s%s.txt' % (prefix, outfile, classes[i])
+        buf = '%s/%s%s.txt' % (prefix, outfile, config.classes[i])
         fps[i] = open(buf, 'w')
         
 
     for lineId,(images,label) in enumerate(train_iterator):
         label = label.view(-1,6)
         images = images.cuda()
-        pred_boxes = predict_gpu(images)
+        pred_cls,pred_response,pred_bboxes = model(images)
+    
+        pred_boxes = decoder_vaild(pred_cls.cpu(),pred_response.cpu(),pred_bboxes.cpu(),config.cls_num)
+        pred_boxes = np.array(pred_boxes)
         
         fileId = os.path.basename(lines[lineId]).split('.')[0]
         
@@ -192,3 +131,24 @@ if __name__ == '__main__':
                 
     for i in range(class_num):
         fps[i].close()
+
+
+if __name__ == '__main__':
+
+    model = YOLO(config.cls_num,config.bbox_num,conv_model = config.use_conv)
+    
+    
+    model.load_state_dict(torch.load('./runs/model_.pkl'))
+    model.cuda()
+    model.eval()
+    prefix = 'results'
+    outfile = "voc"
+    test_list = 'train_list/VOC2007_test.txt'
+    result = eval_mAp(model,prefix,outfile,test_list)
+
+    for key,v in result.items():
+        print("{} : {}".format(key,v))
+    print('~~~~~~~')
+    print("mean ap : {}".format(np.mean(list(result.values()))))
+    
+    
