@@ -4,7 +4,7 @@ It train YOLO in VOC2007(train,vaild)+VOC2012(train,vaild) datasets and test on 
 And I  change the last two fc layer into conv layer. In the conv prediction model, the predicition speed
 is faster and model weight is smaller.
 
-### Evalation:
+### Evaluation:
 
 | Model             | mAp.        |
 | ----------------- | ----------- |
@@ -52,8 +52,9 @@ is faster and model weight is smaller.
 ```
 
 ### Test on VOCdatasets
+```
     python vaild.py
-
+```
 
 ### Conclusions:
 Data Augmentation is crucial ! The random crop help me improve more than 10% mAp.
