@@ -6,7 +6,7 @@ is faster and model weight is smaller.
 |-------------------| ------------|
 | My model fc layer   | 0.59      |
 | My model conv layer | 0.54      |
-| Origin papar         | 0.63      |
+| Origin papar        | 0.63      |
 
 ### Conclusions:
 Data Augmentation is crucial ! The random crop help me improve more than 10% mAp.
@@ -32,17 +32,17 @@ Data Augmentation is crucial ! The random crop help me improve more than 10% mAp
 ```    
 4.  Generate the train and test list
 ```
-	cat 2007_train.txt 2007_val.txt 2012_train.txt 2012_val.txt > train.txt
-	python convert_voc.py --dir_path ./
+    cat 2007_train.txt 2007_val.txt 2012_train.txt 2012_val.txt > train.txt
+    python convert_voc.py --dir_path ./
 ```
 
 5.  Download the pretrain model
-	You can download pretrain model in (https://pjreddie.com/media/files/darknet19_448.conv.23) .
+    You can download pretrain model in https://pjreddie.com/media/files/darknet19_448.conv.23.
 	
 6.  Configure the training param 
-	you can see the config.py, and change the right paths while training your datasets.
+    you can see the config.py, and change the right paths while training your datasets.
 ```
-	python train.py
+    python train.py
 ```
 ### Samples:
 ![imgs](https://github.com/Tshzzz/pytorch_yolov1/raw/master/samples/dog.jpg)
