@@ -73,10 +73,10 @@ def eval_f1(model,loader,iou_thresh=0.5):
 def eval_mAp(model,prefix,outfile,test_list):
 
     res_prefix = prefix +'/'+outfile
-    test_result(model,prefix,outfile,test_list)
+    fscore,recall,precision = test_result(model,prefix,outfile,test_list)
     #_do_python_eval(res_prefix, output_dir = 'output')
     result = _do_python_eval_quite(res_prefix, output_dir = 'output')
-    
+    print("precision: %f, recall: %f, fscore: %f" % (precision, recall, fscore))
     return result
     
     
@@ -86,7 +86,7 @@ def test_result(model,prefix,outfile,test_list):
     class_num = config.cls_num
     
     test_loader = voc_datasets.get_loader(test_list,448,1,False,1)
-    train_iterator = tqdm(test_loader)
+    test_loader = tqdm(test_loader)
     
     list_file = test_list
     lines = []
@@ -100,8 +100,14 @@ def test_result(model,prefix,outfile,test_list):
         buf = '%s/%s%s.txt' % (prefix, outfile, config.classes[i])
         fps[i] = open(buf, 'w')
         
+    total       = 0.0
+    proposals   = 0.0
+    correct     = 0.0
+    eps = 1e-5
+    iou_thresh = 0.5
 
-    for lineId,(images,label) in enumerate(train_iterator):
+
+    for lineId,(images,label) in enumerate(test_loader):
         label = label.view(-1,6)
         images = images.cuda()
         pred_cls,pred_response,pred_bboxes = model(images)
@@ -109,13 +115,22 @@ def test_result(model,prefix,outfile,test_list):
         pred_boxes = decoder_vaild(pred_cls.cpu(),pred_response.cpu(),pred_bboxes.cpu(),config.cls_num)
         pred_boxes = np.array(pred_boxes)
         
+        
+        pred_boxes_f1 = decoder_(pred_cls.cpu(),pred_response.cpu(),pred_bboxes.cpu())
+        pred_boxes_f1 = np.array(pred_boxes_f1)
+        
         fileId = os.path.basename(lines[lineId]).split('.')[0]
         
         img = cv2.imread(lines[lineId].split(" ")[0])
         width, height = img.shape[1],img.shape[0] #get_image_size(valid_files[lineId])
 
-        for j in range(len(pred_boxes)):
 
+        num_gts = len(label)
+        total = total + num_gts
+        proposals += len(pred_boxes)
+
+        for j in range(len(pred_boxes)):
+                
             x1 = int(pred_boxes[j,0] * width)
             y1 = int(pred_boxes[j,1] * height)
             x2 = int(pred_boxes[j,2] * width)
@@ -129,13 +144,37 @@ def test_result(model,prefix,outfile,test_list):
                 prob = float(det_conf * cls_conf)
                 fps[cls_id].write('%s %f %f %f %f %f\n' % (fileId, prob, x1, y1, x2, y2))
                 
+                
+        for i in range(num_gts):
+            box_gt = [label[i][0], label[i][1], label[i][2], label[i][3], label[i][4], label[i][5]]
+                
+            best_iou = 0
+            best_j = -1
+            for j in range(len(pred_boxes_f1)):
+                iou = bbox_iou(box_gt, pred_boxes_f1[j], x1y1x2y2=True)
+                if iou > best_iou:
+                    best_j = j
+                    best_iou = iou
+            
+            if best_iou > iou_thresh and int(pred_boxes_f1[best_j][5]) == int(box_gt[5]):
+                correct = correct+1        
+      
+        
+        
+                
     for i in range(class_num):
         fps[i].close()
+
+    precision = 1.0*correct/(proposals+eps)
+    recall = 1.0*correct/(total+eps)
+    fscore = 2.0*precision*recall/(precision+recall+eps)  
+    
+    return fscore,recall,precision
 
 
 if __name__ == '__main__':
 
-    model = YOLO(config.cls_num,config.bbox_num,conv_model = config.use_conv)
+    model = YOLO(config.cls_num, config.bbox_num, config.box_scale, conv_model = config.use_conv )
     
     
     model.load_state_dict(torch.load('./runs/model_.pkl'))

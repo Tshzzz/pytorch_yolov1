@@ -139,7 +139,7 @@ class testDataset(data.Dataset):
     def __len__(self):
         return self.num_samples
     
-def get_loader(list_file, image_size, batch,train=True, num_workers=8):
+def get_loader(list_file, image_size, batch = 1,train=True, num_workers=8):
 
     transform = transforms.Compose([
                     transforms.Resize(image_size),
@@ -149,6 +149,7 @@ def get_loader(list_file, image_size, batch,train=True, num_workers=8):
     if train:
         dataset = TrainDatasets(transform,image_size,list_file)
     else:
+        batch = 1
         dataset = testDataset(transform,image_size,list_file)
         
     data_loader = data.DataLoader(dataset=dataset,

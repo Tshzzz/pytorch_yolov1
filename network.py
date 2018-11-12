@@ -105,14 +105,14 @@ class darknet_19(nn.Module):
     
 class YOLO(nn.Module):
 
-    def __init__(self,cls_num,bbox_num = 2,scale_size = 7,conv_model = True,if_pretrain = True):
+    def __init__(self,cls_num,bbox_num = 2,scale_size = 7,conv_model = True,pretrained = None):
         super(YOLO, self).__init__()
         
         self.cls_num = cls_num
         self.feature = darknet_19()
         self.conv_model = conv_model
-        if if_pretrain:
-            self.feature.load_weight('models/darknet19_448.conv.23')
+        if pretrained is not None :
+            self.feature.load_weight(pretrained)
             
             
         self.scale_size = scale_size
@@ -141,8 +141,8 @@ class YOLO(nn.Module):
         else:
             self.reg_layer.add_module('local_layer', nn.Linear(1024*7*7, 4096))
             self.reg_layer.add_module('leaky_local', nn.LeakyReLU(0.1, inplace=True))
-            self.reg_layer.add_module('dropout', nn.Dropout(0.2) )
-            self.reg_layer.add_module('fc_1', nn.Linear(4096, (5*self.bbox_num+self.cls_num)*49 ))
+            self.reg_layer.add_module('dropout', nn.Dropout(0.5) )
+            self.reg_layer.add_module('fc_1', nn.Linear(4096, (5*self.bbox_num+self.cls_num)*self.scale_size*self.scale_size ))
 
     
     def forward(self,x):

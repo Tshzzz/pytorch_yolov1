@@ -13,7 +13,7 @@ from tqdm import tqdm
 from loss import yolov1_loss
 from torch.optim.lr_scheduler import MultiStepLR
 from network import YOLO
-from vaild import eval_f1,eval_mAp
+from vaild import eval_mAp
 import config
 import numpy as np
 from tensorboardX import SummaryWriter
@@ -34,11 +34,11 @@ l_noobj = config.l_noobj
 scale_size = config.box_scale
 conv_model = config.use_conv
 
-
+pretrained = config.pretrain_path
 
 
 if epochs_start == 0:
-    net = YOLO(cls_num,bbox_num,scale_size,conv_model = conv_model)
+    net = YOLO(cls_num,bbox_num,scale_size,conv_model = conv_model,pretrained = pretrained)
 else:
     net = YOLO(cls_num,bbox_num,scale_size,conv_model = conv_model)
     
@@ -51,10 +51,10 @@ print("load model successfully")
 
 train_loader = voc_datasets.get_loader(train_image_list,448,batch_size,True,8)
 
-test_loader = voc_datasets.get_loader(eval_image_list,448,1,False,8)
+#test_loader = voc_datasets.get_loader(eval_image_list,448,1,False,8)
 
 optimizer = optim.SGD(net.parameters(), lr=start_lr, momentum=0.9, weight_decay=5e-4)
-scheduler = MultiStepLR(optimizer, milestones=[75,105],gamma=0.1)
+scheduler = MultiStepLR(optimizer, milestones=[30,105],gamma=0.1)
 
 
 loss_detect = yolov1_loss(bbox_num,l_coord,l_noobj,cls_num)
@@ -106,20 +106,22 @@ for epoch in range(epochs_start,epochs_end):
     if epoch % 1 == 0 :
         print("Evaluate~~~~~   ")
         net.eval()
-        eval_score,recall,precision = eval_f1(net,test_loader,iou_thresh=0.5)
+        result = eval_mAp(net,'results','',eval_image_list)
+        eval_score = np.mean(list(result.values()))
+        
         
         net.train()
         
     if best_score < eval_score:  
-        best_f1_score = eval_score 
+        best_score = eval_score 
         torch.save(net.state_dict(),model_path+"model_.pkl")
         
-    print("precision: %f, recall: %f, fscore: %f, best_f1: %f" % (precision, recall, eval_score,best_score))
-    
+    #print("precision: %f, recall: %f, fscore: %f, best_f1: %f" % (precision, recall, eval_score,best_score))
+    print("mean ap : {} , best ap: {}".format(eval_score,best_score))
     scheduler.step()
     
     
-print(best_f1_score)    
+print(best_score)    
     
 torch.save(net.state_dict(),model_path+"model_.pkl"+repr(epoch+1))
 
