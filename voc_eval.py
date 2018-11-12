@@ -201,8 +201,7 @@ def voc_eval(detpath,
     
 
 
-def _do_python_eval(res_prefix, output_dir = 'output'):
-    _devkit_path = './build_data/VOCdevkit'
+def _do_python_eval(res_prefix,_devkit_path, output_dir = 'output'):
     _year = '2007'
     _classes = ('__background__', # always index 0
         'aeroplane', 'bicycle', 'bird', 'boat',
@@ -256,9 +255,8 @@ def _do_python_eval(res_prefix, output_dir = 'output'):
     print('-- Thanks, The Management')
     print('--------------------------------------------------------------')
     
-def _do_python_eval_quite(res_prefix, output_dir = 'output'):
+def _do_python_eval_quite(res_prefix,_devkit_path ,output_dir = 'output'):
     
-    _devkit_path = './build_data/VOCdevkit'
     _year = '2007'
     _classes = ('__background__', # always index 0
         'aeroplane', 'bicycle', 'bird', 'boat',
@@ -307,6 +305,7 @@ def _do_python_eval_quite(res_prefix, output_dir = 'output'):
 if __name__ == '__main__':
     #res_prefix = '/data/hongji/darknet/project/voc/results/comp4_det_test_'    
     res_prefix = 'results/voc'#sys.argv[1]
-    _do_python_eval(res_prefix, output_dir = 'output')
+    _devkit_path = './VOCdevkit'
+    _do_python_eval(res_prefix,_devkit_path ,output_dir = 'output')
 
 

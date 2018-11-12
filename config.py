@@ -6,7 +6,7 @@ bbox_num = 2
 box_scale = 7
 lr = 1e-4
 
-
+voc_path = './VOCdevkit'
 train_image_list = "./train.txt"
 eval_image_list= "./VOC2007_test.txt"
 model_path = "./runs/"
@@ -16,7 +16,7 @@ pretrain_path = 'darknet19_448.conv.23'
 
 
 model_save_iter = 1  # epochs
-epochs_start = 130
+epochs_start = 0
 epochs_end = 130+50
 batch_size = 15
 cls_num = len(classes)

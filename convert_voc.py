@@ -13,12 +13,12 @@ import argparse
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dir_path', type=int, default='./')
+    parser.add_argument('--dir_path', type=str, default='./')
     args = parser.parse_args()
     return args
 
 
-sets = [('2012','test'),('2007','test'),('2007','train'),('2007','val'),('2012','train'),('2012','val')]
+sets = [('2007','test'),('2007','train'),('2007','val'),('2012','train'),('2012','val')]
 
 
 classes = ["aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", 
@@ -69,7 +69,7 @@ def convert_xml(file_path,out_file):
 if __name__ == '__main__':
     
     args = parse_args()
-    root_dir = args.dir_path+'/VOCdevkit/'
+    root_dir = args.dir_path+'VOCdevkit/'
 
     for data_ in sets:
         

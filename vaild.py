@@ -16,7 +16,6 @@ from util import decoder_vaild,decoder_,bbox_iou
 import os
 import config
 
-
 from voc_eval import _do_python_eval_quite
 
 def eval_f1(model,loader,iou_thresh=0.5):
@@ -75,7 +74,7 @@ def eval_mAp(model,prefix,outfile,test_list):
     res_prefix = prefix +'/'+outfile
     fscore,recall,precision = test_result(model,prefix,outfile,test_list)
     #_do_python_eval(res_prefix, output_dir = 'output')
-    result = _do_python_eval_quite(res_prefix, output_dir = 'output')
+    result = _do_python_eval_quite(res_prefix,config.voc_path ,output_dir = 'output')
     print("precision: %f, recall: %f, fscore: %f" % (precision, recall, fscore))
     return result
     
@@ -177,12 +176,12 @@ if __name__ == '__main__':
     model = YOLO(config.cls_num, config.bbox_num, config.box_scale, conv_model = config.use_conv )
     
     
-    model.load_state_dict(torch.load('./runs/model_.pkl'))
+    model.load_state_dict(torch.load('model_.pkl'))
     model.cuda()
     model.eval()
     prefix = 'results'
     outfile = "voc"
-    test_list = 'train_list/VOC2007_test.txt'
+    test_list = 'VOC2007_test.txt'
     result = eval_mAp(model,prefix,outfile,test_list)
 
     for key,v in result.items():

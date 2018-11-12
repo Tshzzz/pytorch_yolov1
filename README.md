@@ -1,4 +1,4 @@
-﻿## Yolo v1: 
+﻿##  [Yolo](https://arxiv.org/abs/1506.02640): 
 It train YOLO in VOC2007(train,vaild)+VOC2012(train,vaild) datasets and test on VOC2007(test).
 And I  change the last two fc layer into conv layer. In the conv prediction model, the predicition speed
 is faster and model weight is smaller.
@@ -32,8 +32,8 @@ Data Augmentation is crucial ! The random crop help me improve more than 10% mAp
 ```    
 4.  Generate the train and test list
 ```
-    cat 2007_train.txt 2007_val.txt 2012_train.txt 2012_val.txt > train.txt
     python convert_voc.py --dir_path ./
+    cat VOC2007_train.txt VOC2012_train.txt VOC2007_val.txt VOC2012_val.txt >> train.txt
 ```
 
 5.  Download the pretrain model
@@ -44,7 +44,12 @@ Data Augmentation is crucial ! The random crop help me improve more than 10% mAp
 ```
     python train.py
 ```
+
+### Test on VOCdatasets
+    python vaild.py
+
+
 ### Samples:
 ![imgs](https://github.com/Tshzzz/pytorch_yolov1/raw/master/samples/dog.jpg)
 ![imgs](https://github.com/Tshzzz/pytorch_yolov1/raw/master/samples/person.jpg)
-![imgs](https://github.com/Tshzzz/pytorch_yolov1/raw/master/samples/person.jpg)
+![imgs](https://github.com/Tshzzz/pytorch_yolov1/raw/master/samples/horses.jpg)
