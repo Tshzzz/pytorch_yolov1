@@ -1,7 +1,9 @@
 ﻿## Yolo v1: 
 It train YOLO in VOC2007(train,vaild)+VOC2012(train,vaild) datasets and test on VOC2007(test).
-And I  change the last two fc layer into conv layer. In the conv prediction model, the predicition speed
-is faster and model weight is smaller.
+
+I  change the last two fc layer into conv layer. 
+
+In the conv prediction model, the predicition speed is faster and model weight is smaller.
 
 ### Accuracy:
 | Model             | mAp.        |
