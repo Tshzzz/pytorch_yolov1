@@ -8,8 +8,8 @@ is faster and model weight is smaller.
 
 | Model             | mAp.        |
 | ----------------- | ----------- |
-| My model fc layer   | 0.59      |
-| My model conv layer | 0.54      |
+| My model fc layer   | 0.60      |
+| My model conv layer | 0.55      |
 | Origin papar        | 0.63      |
 
 
