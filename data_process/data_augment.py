@@ -102,18 +102,13 @@ def fill_truth_detection(labpath, w, h, flip, dx, dy, sx, sy):
         bs = np.reshape(bs, (-1, 5))
 
         for i in range(bs.shape[0]):
-            assert bs[i][4] > 0
-            
+
             x1 = bs[i][1] - bs[i][3]/2
             y1 = bs[i][2] - bs[i][4]/2
             x2 = bs[i][1] + bs[i][3]/2
             y2 = bs[i][2] + bs[i][4]/2
 
-            assert sx > 0
-            assert sy > 0
-            assert x2 > x1,(x2,x1)
-            assert y2 > y1,(y1,y2)
-            
+
             x1 = min(0.999, max(0, x1 * sx - dx)) 
             y1 = min(0.999, max(0, y1 * sy - dy)) 
             

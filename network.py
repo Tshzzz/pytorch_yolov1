@@ -174,6 +174,8 @@ class YOLO(nn.Module):
                 pred_bbox[:,i,j,0] += float(j) / self.scale_size
                 pred_bbox[:,i,j,1] += float(i) / self.scale_size
 
+        #pred
+
         return pred_cls,pred_response,pred_bbox
         
 
