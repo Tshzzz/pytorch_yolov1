@@ -19,8 +19,8 @@ def yolo_box_encoder(bs):
         for j in range(config.YOLO['box_num']):
             bb_response[local_y, local_x, j] = 1
 
-            bb_boxes[local_y, local_x, j * 4 + 0] = bs[i,0] + bs[i,2] /2
-            bb_boxes[local_y, local_x, j * 4 + 1] = bs[i,1] + bs[i,3] /2
+            bb_boxes[local_y, local_x, j * 4 + 0] = (bs[i,0] + bs[i,2] /2)
+            bb_boxes[local_y, local_x, j * 4 + 1] = (bs[i,1] + bs[i,3] /2)
             bb_boxes[local_y, local_x, j * 4 + 2] = np.sqrt(bs[i,2])
             bb_boxes[local_y, local_x, j * 4 + 3] = np.sqrt(bs[i,3])
 
@@ -140,7 +140,7 @@ def py_cpu_nms(dets, scores, thresh):
 
     keep = []
 
-    index = scores.argsort()[::-1][:500]
+    index = scores.argsort()[::-1][:200]
 
 
     while index.size > 0:

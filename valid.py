@@ -28,8 +28,7 @@ import time
 def eval_mAp(model, prefix, outfile, test_list):
     res_prefix = prefix + '/' + outfile
     test_result(model, prefix, outfile, test_list)
-    # _do_python_eval(res_prefix, output_dir = 'output')
-    result = _do_python_eval_quite(res_prefix, output_dir='output')
+    result = _do_python_eval_quite(res_prefix,config.VOC_root_dir ,output_dir='output')
 
     return result
 
@@ -101,8 +100,7 @@ def test_result(model, prefix, outfile, test_list):
             y1,y2 = y1*height,y2*height
 
             cls_id = int(pred_conf[j,0])
-            scores = pred_conf[j,1]#.max()
-            #print(cls_id,scores)
+            scores = pred_conf[j,1]
             fps[cls_id].write('%s %.3f %.1f %.1f %.1f %.1f\n' %
                               (fileId, scores, x1 + 1, y1 + 1, x2 + 1, y2 + 1))
             
@@ -115,7 +113,7 @@ def test_result(model, prefix, outfile, test_list):
 
 if __name__ == '__main__':
     model = YOLO(config.cls_num, config.bbox_num, config.box_scale, conv_model=config.use_conv)
-    model.load_state_dict(torch.load('./54con.pkl'))
+    model.load_state_dict(torch.load('../runs/best_.pkl'))
 
 
 

@@ -1,10 +1,10 @@
-﻿#  [Yolo](https://arxiv.org/abs/1506.02640):
+﻿#  [YOLO](https://arxiv.org/abs/1506.02640):
  
-It train YOLO in VOC2007(train,vaild)+VOC2012(train,vaild) datasets and test on VOC2007(test).
-And I  change the last two fc layer into conv layer. In the conv prediction model, the predicition speed
+It train YOLO in VOC2007(train,vaild)+VOC2012(train,vaild) datasets and test on VOC2007(test).    
+And I  change the last two fc layer into conv layer. In the conv prediction model, the predicition speed    
 is faster and model weight is smaller.  
-fc layer model test on 1080Ti 59FPS  
-conv layer model test on 1080Ti 67FPS  
+fc layer model test on 1080Ti is 60FPS  
+conv layer model test on 1080Ti is 69FPS  
 ### Evaluation:
 
 | Model             | mAp.        |
@@ -54,7 +54,7 @@ conv layer model test on 1080Ti 67FPS
 
 ### Test on VOCdatasets
 ```
-    python vaild.py
+    python valid.py
 ```
 
 ### Conclusions:

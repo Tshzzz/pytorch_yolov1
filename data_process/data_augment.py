@@ -6,7 +6,6 @@ Created on Fri Nov  9 19:49:39 2018
 @author: tshzzz
 """
 from PIL import Image,ImageEnhance
-import os 
 import random
 import numpy as np
 
@@ -71,8 +70,6 @@ def data_augmentation(img, shape, jitter, hue, saturation, exposure):
     swidth =  ow - pleft - pright
     sheight = oh - ptop - pbot
 
-    assert sheight > 0, (dh,dh)
-
 
     sx = float(swidth)  / ow
     sy = float(sheight) / oh
@@ -92,55 +89,73 @@ def data_augmentation(img, shape, jitter, hue, saturation, exposure):
     
     return img, flip, dx,dy,sx,sy 
 
-def fill_truth_detection(labpath, w, h, flip, dx, dy, sx, sy):
+def fill_truth_detection(bs, flip, dx, dy, sx, sy):
 
     new_bs = []
-    if os.path.getsize(labpath):
-        bs = np.loadtxt(labpath,delimiter=',') 
-        assert bs is not None
-
-        bs = np.reshape(bs, (-1, 5))
-
-        for i in range(bs.shape[0]):
-
-            x1 = bs[i][1] - bs[i][3]/2
-            y1 = bs[i][2] - bs[i][4]/2
-            x2 = bs[i][1] + bs[i][3]/2
-            y2 = bs[i][2] + bs[i][4]/2
-
-
-            x1 = min(0.999, max(0, x1 * sx - dx)) 
-            y1 = min(0.999, max(0, y1 * sy - dy)) 
+    #print(bs)
+    for i in range(bs.shape[0]):
+        x1 = bs[i][0]
+        y1 = bs[i][1]
+        x2 = bs[i][0] + bs[i][2]
+        y2 = bs[i][1] + bs[i][3]
+        
+        x1 = min(0.99, max(0, x1 * sx - dx)) 
+        y1 = min(0.99, max(0, y1 * sy - dy)) 
             
-            x2 = max(0, min(0.99, x2 * sx - dx))
-            y2 = max(0, min(0.99, y2 * sy - dy))
+        x2 = max(0, min(0.999, x2 * sx - dx))
+        y2 = max(0, min(0.999, y2 * sy - dy))
             
-            bs[i][1] = (x1 + x2)/2
-            bs[i][2] = (y1 + y2)/2
-            bs[i][3] = (x2 - x1)
-            bs[i][4] = (y2 - y1)
-
-            
-            if bs[i][3] > 0 and bs[i][4] > 0:
-                new_bs.append([bs[i]])
+        
+        bs[i][0] = x1
+        bs[i][1] = y1 
+        bs[i][2] = x2 - x1
+        bs[i][3] = y2 - y1
+        bs[i][4] = bs[i][4]
+        if flip:
+            bs[i][0] =  1 - bs[i][0] - bs[i][2]
+                
+        if bs[i][2] > 0 and bs[i][3] > 0:
+            new_bs.append([bs[i]])
    
-            if flip:
-                bs[i][1] =  0.9999 - bs[i][1] 
-            
-            if bs[i][3] < 0.001 or bs[i][4] < 0.001:
-                continue
-            
-
     new_bs = np.array(new_bs)
     new_bs = np.reshape(new_bs, (-1, 5))
 
     return new_bs
 
-def load_data_detection(imgpath,labpath ,shape, jitter, hue, saturation, exposure):
-    ## data augmentation
+
+def norm_bb(b,size):
+    x = b[:, 0:1]
+    y = b[:, 1:2]
+
+    dw = 1. / size[0]
+    dh = 1. / size[1]
+
+    x = (x * dw).clip(0.01, 0.99)
+    y = (y * dh).clip(0.01, 0.99)
+    w = ((b[:, 2:3] - b[:, 0:1]) * dw).clip(0.01, 0.99)
+    h = ((b[:, 3:4] - b[:, 1:2]) * dh).clip(0.01, 0.99)
+
+    return np.concatenate((x, y, w, h, b[:, 4:5]), axis=1)
+
+def load_data_detection(imgpath,labpath ,shape, aug = True, jitter=0.2, hue=0.1, saturation=1.5, exposure=1.5):
+
     img = Image.open(imgpath).convert('RGB')
-    img,flip,dx,dy,sx,sy = data_augmentation(img, shape, jitter, hue, saturation, exposure)
+
+    bs = np.loadtxt(labpath,delimiter=',') 
+    bs = np.reshape(bs, (-1, 5))
     
-    assert sy > 0,sy
-    label = fill_truth_detection(labpath, img.width, img.height, flip, dx, dy, 1./sx, 1./sy)
+    bs = norm_bb(bs,(img.width,img.height))
+    
+    if aug:
+        img, flip, dx, dy, sx, sy = data_augmentation(img, shape, jitter, hue, saturation, exposure)
+    else:
+        flip, dx, dy, sx, sy = False, 0, 0, 1, 1
+        
+    #print(dx, dy, sx, sy)
+    label = fill_truth_detection(bs, flip, dx, dy, 1./sx, 1./sy)
+    
     return img,label
+
+
+
+

@@ -69,7 +69,7 @@ train_loader = data.DataLoader(dataset=dataset,
                               num_workers=8)
 
 optimizer = optim.SGD(net.parameters(), lr=start_lr, momentum=0.9, weight_decay=5e-4)
-scheduler = MultiStepLR(optimizer, milestones=[100, 130], gamma=0.1)
+scheduler = MultiStepLR(optimizer, milestones=[70, 130], gamma=0.1)
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 

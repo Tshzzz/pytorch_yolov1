@@ -7,6 +7,8 @@ from torch.utils import data
 
 from data_process.data_aug import *
 from data_process.bbox_util import *
+from data_process.data_augment import load_data_detection
+
 import config
 
 
@@ -34,6 +36,7 @@ def data_augment(fname, gt_path, data_aug):
         img, bs = seq(img.copy(), bs.copy())
 
     bs = norm_bb((img.shape[1], img.shape[0]), bs)
+    img = Image.fromarray(img)
     return img, bs
 
 
@@ -60,8 +63,8 @@ class VOCDatasets(data.Dataset):
         file_name = self.image_path[idx]
         gt_path = self.label_path[idx]
 
-        img,bbox = data_augment(file_name,gt_path,self.train)
-
+        #img,bbox = data_augment(file_name,gt_path,self.train)
+        img,bbox = load_data_detection(file_name,gt_path,[448, 448],self.train)
         #最大支持50个bbox
 
         if self.box_encoder is not None:
@@ -71,8 +74,7 @@ class VOCDatasets(data.Dataset):
             gt[:len(bbox), :] = bbox
             gt = torch.from_numpy(gt).float()
 
-        img = Image.fromarray(img)
-        img = self.transform(img)
+        img = self.transform(img)*255
 
         return img,gt
 
@@ -84,7 +86,7 @@ class VOCDatasets(data.Dataset):
 if __name__ == '__main__':
     import tqdm
     from torchvision import transforms
-    from box_utils import yolo_box_decoder,yolo_box_encoder,ssd_box_decoder,ssd_box_encoder
+    from box_utils import yolo_box_decoder,yolo_box_encoder
     class_num = 20
     transform = transforms.Compose([
         transforms.Resize([448, 448]),
@@ -93,12 +95,14 @@ if __name__ == '__main__':
     ])
     list_file = 'VOC2007_test.txt'
 
-    dataset = VOCDatasets(transform,list_file ,ssd_box_encoder ,False)
+    dataset = VOCDatasets(transform,list_file ,yolo_box_encoder ,False)
 
     data_loader = data.DataLoader(dataset=dataset,
                                   batch_size=1,
                                   shuffle=False,
                                   num_workers=4)
+    
+    data_loader = tqdm.tqdm(data_loader)
     with open(list_file) as f:
         lines = f.readlines()
     prefix = 'results'
@@ -112,41 +116,32 @@ if __name__ == '__main__':
         buf = '%s/%s%s.txt' % (prefix, outfile, config.classes[i])
         fps[i] = open(buf, 'w')
 
-    #for img,box in tqdm.tqdm(data_loader):
-
-    for lineId, (images, label) in tqdm.tqdm(enumerate(data_loader)):
+    for lineId, (images, label) in enumerate(data_loader):
 
         fileId = os.path.basename(lines[lineId]).split('.')[0]
 
         img = cv2.imread(lines[lineId].split(" ")[0])
         width, height = img.shape[1], img.shape[0]
 
-        #pred_boxes,pred_conf = yolo_box_decoder(label)
-        pred_boxes,pred_conf = ssd_box_decoder(label)
-        #print(pred_boxes)
+
+        pred_boxes,pred_conf = yolo_box_decoder(label)
+
         for j in range(len(pred_boxes)):
+
 
             x1 = pred_boxes[j,0]
             y1 = pred_boxes[j,1]
             x2 = x1 + pred_boxes[j,2]
             y2 = y1 + pred_boxes[j,3]
 
-            x1,x2 = int(x1*width),int(x2*width)
-            y1,y2 = int(y1*height),int(y2*height)
-            img = cv2.rectangle(img, (x1,y1), (x2,y2), (0, 0, 255), 5)
+            x1,x2 = x1*width,x2*width
+            y1,y2 = y1*height,y2*height
 
-            #det_conf = pred_boxes[j, 4]
-            #for k in range((len(pred_boxes[0]) - 5)):
-                #cls_conf = pred_boxes[j, 5 + k]
-            #    cls_id = k
-            #    prob = float(det_conf * cls_conf)
-            #    fps[cls_id].write('%s %f %f %f %f %f\n' % (fileId, prob, x1, y1, x2, y2))
-            #print(pred_conf[j])
+            cls_id = int(pred_conf[j,0])
+            scores = pred_conf[j,1]
 
-            for cls_id in range((len(pred_conf[j]))):
-                #cls_id = k
-                fps[cls_id].write('%s %f %f %f %f %f\n' % (fileId, pred_conf[j,cls_id], x1, y1, x2, y2))
-
+            fps[cls_id].write('%s %.3f %.1f %.1f %.1f %.1f\n' %
+                              (fileId, scores, x1 + 1, y1 + 1, x2 + 1, y2 + 1))
 
     for i in range(class_num):
         fps[i].close()

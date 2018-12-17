@@ -13,12 +13,12 @@ eval_image_list= "./VOC2007_test.txt"
 model_path = "./runs/"
 pretrain_path = '../pytorch_yolov1/darknet19_448.conv.23'
 
-
+VOC_root_dir = '/home/tshzzz/Imagesets/VOCdevkit'
 
 
 model_save_iter = 1  # epochs
-epochs_start = 0
-epochs_end = 100
+epochs_start = 140
+epochs_end = 150
 batch_size = 20
 cls_num = len(classes)
 

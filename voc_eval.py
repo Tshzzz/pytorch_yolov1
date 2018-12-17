@@ -203,8 +203,7 @@ def voc_eval(detpath,
     return rec, prec, ap
 
 
-def _do_python_eval(res_prefix, output_dir='output'):
-    _devkit_path = '/home/tshzzz/Imagesets/VOCdevkit'
+def _do_python_eval(res_prefix,_devkit_path ,output_dir='output'):
     _year = '2007'
     _classes = ('__background__',  # always index 0
                 'aeroplane', 'bicycle', 'bird', 'boat',
@@ -259,8 +258,7 @@ def _do_python_eval(res_prefix, output_dir='output'):
     print('--------------------------------------------------------------')
 
 
-def _do_python_eval_quite(res_prefix, output_dir='output'):
-    _devkit_path = '/home/tshzzz/Imagesets/VOCdevkit'
+def _do_python_eval_quite(res_prefix,_devkit_path ,output_dir='output'):
     _year = '2007'
     _classes = ('__background__',  # always index 0
                 'aeroplane', 'bicycle', 'bird', 'boat',

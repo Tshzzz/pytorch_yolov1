@@ -119,10 +119,12 @@ class YOLO(nn.Module):
         self.bbox_num = bbox_num 
         self.last_output = (5*self.bbox_num+self.cls_num)
 
-        self.boundary_class = self.scale_size * self.scale_size * self.cls_num
-        self.boundary_boxes = self.boundary_class + self.scale_size * self.scale_size * self.bbox_num * 4    
-
-
+        cx = torch.linspace(0.5 / scale_size, (scale_size-0.5) / scale_size, steps=scale_size).\
+            view(-1, scale_size).repeat((scale_size, 1)).view(scale_size, scale_size, -1)
+        cy = torch.linspace(0.5 / scale_size, (scale_size-0.5) / scale_size, steps=scale_size).\
+            view(scale_size, -1).repeat((1, scale_size)).view(scale_size, scale_size, -1)
+        self.anchor = torch.cat((cx, cy), 2)
+        
         self.local_layer = nn.Sequential()
         
         self.local_layer.add_module('block_1',conv_block(1024,1024,3,False,2))
@@ -146,7 +148,7 @@ class YOLO(nn.Module):
 
     
     def forward(self,x):
-
+        B = x.size(0)
         output = self.feature(x)
         output = self.local_layer(output)
         
@@ -162,20 +164,15 @@ class YOLO(nn.Module):
 
         output = output.permute(0,2,3,1).contiguous()
         
-        pred_cls = output[:,:,:,:self.cls_num]
-        pred_bbox = torch.cat([output[:,:,:,self.cls_num:self.cls_num+4],output[:,:,:,self.cls_num+5:self.cls_num+4+5]],-1)
+        pred_cls = output[:, :, :, :self.cls_num]
+        pred_bbox = torch.cat(
+            [output[:, :, :, self.cls_num + 5*j:self.cls_num + 4 + 5*j ] for j in range(self.bbox_num)],
+            -1)
+        pred_response = torch.cat([output[:, :, :, self.cls_num + 4 + 5*j:self.cls_num + 4+ 5*j +1]
+                                   for j in range(self.bbox_num)], -1)
+        anchors = self.anchor.repeat((B, 1, 1, 1)).to(pred_bbox.device)
+        pred_bbox[:,:,:,0:2] += anchors
         
-        pred_response = torch.cat([output[:,:,:,self.cls_num+4:self.cls_num+4+1],output[:,:,:,self.cls_num+4+5:self.cls_num+4+5+1]],-1)
-        
-        assert self.cls_num+4+5+1 == output.size(-1)
-        
-        for i in range(self.scale_size):       #yyyyyyyyyy
-            for j in range(self.scale_size): #xxxxxx
-                pred_bbox[:,i,j,0] += float(j) / self.scale_size
-                pred_bbox[:,i,j,1] += float(i) / self.scale_size
-
-        #pred
-
         return pred_cls,pred_response,pred_bbox
         
 
