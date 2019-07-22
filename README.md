@@ -49,7 +49,7 @@ conv layer model test on 1080Ti is 69FPS
     
     you can see the config.py, and change the right paths while training your datasets.
 ```
-    python train.py
+    python main.py
 ```
 
 ### Test on VOCdatasets
