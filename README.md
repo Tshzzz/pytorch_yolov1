@@ -1,23 +1,68 @@
-## Yolo v1: 
-It's too hard to train yolo v1. I'm still can't recurrent the accuracy in voc datasets. 
+﻿#  [YOLO](https://arxiv.org/abs/1506.02640):
+ 
+It train YOLO in VOC2007(train,vaild)+VOC2012(train,vaild) datasets and test on VOC2007(test).    
+And I  change the last two fc layer into conv layer. In the conv prediction model, the predicition speed    
+is faster and model weight is smaller.  
+fc layer model test on 1080Ti is 60FPS  
+conv layer model test on 1080Ti is 69FPS  
+### Evaluation:
 
-I train on voc2012 trainsets , the mAp on trainsets can reach to 80. but on the testsets it only has 30. 
-
-I train a single class detect net in coco datasets , it works but still not well. 
-
-I think the yolo has too few boxes to predict the object , and hard to learn the matching strategies.
-
-### Train Method:
-I pick the images with person class from coco datasets . The trainsets contains about 11k picture.
-
-I train 100 epochs with lr 0.0001.
-
-You can reset the train parameter to train your datasets.
-
-the training logs:
-![imgs](https://raw.githubusercontent.com/Tshzzz/pytorch_yolov1/master/imgs/train_log.png)
+| Model             | mAp.        |
+| ----------------- | ----------- |
+| My model fc layer   | 0.63      |
+| My model conv layer | 0.58      |
+| Origin papar        | 0.63      |
 
 
-### Results:
-![imgs](https://github.com/Tshzzz/pytorch_yolov1/raw/master/imgs/000000001591.jpg)
-![imgs](https://github.com/Tshzzz/pytorch_yolov1/raw/master/imgs/000000000692.jpg)
+### Train on VOCdatasets
+
+1.  Download the training, validation, test data and VOCdevkit
+```
+    wget http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCtrainval_06-Nov-2007.tar
+    wget http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCtest_06-Nov-2007.tar
+    wget http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCdevkit_08-Jun-2007.tar
+```
+2.  Extract all of these tars into one directory named  `VOCdevkit`
+```
+    tar xvf VOCtrainval_06-Nov-2007.tar
+    tar xvf VOCtest_06-Nov-2007.tar
+    tar xvf VOCdevkit_08-Jun-2007.tar
+```
+3.  It should have this basic structure
+```
+    $VOCdevkit/                           # development kit
+    $VOCdevkit/VOCcode/                   # VOC utility code
+    $VOCdevkit/VOC2007                    # image sets, annotations, etc.
+```
+4.  Generate the train and test list
+```
+    python convert_voc.py --dir_path ./
+    cat VOC2007_train.txt VOC2012_train.txt VOC2007_val.txt VOC2012_val.txt >> train.txt
+```
+
+5.  Download the pretrain model
+```
+    You can download pretrain model in https://pjreddie.com/media/files/darknet19_448.conv.23.
+```
+	
+6.  Configure the training param 
+    
+    you can see the config.py, and change the right paths while training your datasets.
+```
+    python train.py
+```
+
+### Test on VOCdatasets
+```
+    python valid.py
+```
+
+### Conclusions:
+Data Augmentation is crucial ! The random crop help me improve more than 10% mAp.
+
+
+
+### Samples:
+![imgs](https://github.com/Tshzzz/pytorch_yolov1/raw/master/samples/dog.jpg)
+![imgs](https://github.com/Tshzzz/pytorch_yolov1/raw/master/samples/person.jpg)
+![imgs](https://github.com/Tshzzz/pytorch_yolov1/raw/master/samples/horses.jpg)
