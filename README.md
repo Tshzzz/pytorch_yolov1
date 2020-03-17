@@ -1,21 +1,23 @@
+## Yolo v1: 
+It's too hard to train yolo v1. I'm still can't recurrent the accuracy in voc datasets. 
 
-### TODO
-- [x] CenterNet
-- [ ] Data Augment
-- [ ] YOLO v2,v3
-- [ ] FCOS  
-- [ ] Retinanet
+I train on voc2012 trainsets , the mAp on trainsets can reach to 80. but on the testsets it only has 30. 
+
+I train a single class detect net in coco datasets , it works but still not well. 
+
+I think the yolo has too few boxes to predict the object , and hard to learn the matching strategies.
+
+### Train Method:
+I pick the images with person class from coco datasets . The trainsets contains about 11k picture.
+
+I train 100 epochs with lr 0.0001.
+
+You can reset the train parameter to train your datasets.
+
+the training logs:
+![imgs](https://raw.githubusercontent.com/Tshzzz/pytorch_yolov1/master/imgs/train_log.png)
 
 
-
-### Experiment
-#### Center Net
-| Backbone          | data method | img size    |    mAp      |
-| ------------------| ----------- | ------------| ----------- |
-| ResNet34          |  none       | 384 x 384   |    0.66     |
-| ResNet34          |  vflip      | 384 x 384   |    0.70     |
-| ResNet34          | ramdon crop | 384 x 384   |    0.728    |
-| ResNet34          |  erase box  | 384 x 384   |    0.742    |
-| ResNet50          |  ALL        | 384 x 384   |    0.751    |
-| ResNet50          |  ALL        | 384 x 384   |    0.775    |
-| ResNet101         |  ALL        | 384 x 384   |    0.759    |
+### Results:
+![imgs](https://github.com/Tshzzz/pytorch_yolov1/raw/master/imgs/000000001591.jpg)
+![imgs](https://github.com/Tshzzz/pytorch_yolov1/raw/master/imgs/000000000692.jpg)
