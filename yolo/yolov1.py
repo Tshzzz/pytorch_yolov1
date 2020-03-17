@@ -90,25 +90,6 @@ class YOLO(nn.Module):
             return loss_dict
 
 
-def load_conv_bn(buf, start, conv_model, bn_model):
-    num_w = conv_model.weight.numel()
-
-    num_b = bn_model.bias.numel()
-    bn_model.bias.data.copy_(torch.from_numpy(buf[start:start + num_b]))
-    start = start + num_b
-    bn_model.weight.data.copy_(torch.from_numpy(buf[start:start + num_b]))
-    start = start + num_b
-    bn_model.running_mean.copy_(torch.from_numpy(buf[start:start + num_b]))
-    start = start + num_b
-    bn_model.running_var.copy_(torch.from_numpy(buf[start:start + num_b]))
-    start = start + num_b
-
-    conv_weight = torch.from_numpy(buf[start:start + num_w])
-    conv_model.weight.data.copy_(conv_weight.view_as(conv_model.weight))
-    start = start + num_w
-
-    return start
-
 
 if __name__ == '__main__':
     net = YOLO(20)

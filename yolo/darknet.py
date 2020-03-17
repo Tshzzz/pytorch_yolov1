@@ -30,7 +30,24 @@ layer_configs = [
     (1024, 3, False),
 ]
 
+def load_conv_bn(buf, start, conv_model, bn_model):
+    num_w = conv_model.weight.numel()
 
+    num_b = bn_model.bias.numel()
+    bn_model.bias.data.copy_(torch.from_numpy(buf[start:start + num_b]))
+    start = start + num_b
+    bn_model.weight.data.copy_(torch.from_numpy(buf[start:start + num_b]))
+    start = start + num_b
+    bn_model.running_mean.copy_(torch.from_numpy(buf[start:start + num_b]))
+    start = start + num_b
+    bn_model.running_var.copy_(torch.from_numpy(buf[start:start + num_b]))
+    start = start + num_b
+
+    conv_weight = torch.from_numpy(buf[start:start + num_w])
+    conv_model.weight.data.copy_(conv_weight.view_as(conv_model.weight))
+    start = start + num_w
+
+    return start
 class conv_block(nn.Module):
 
     def __init__(self, inplane, outplane, kernel_size, pool, stride=1):
