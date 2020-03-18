@@ -200,8 +200,7 @@ class train_engine(object):
                         epoch + 1, scheduler.get_lr()[0])
 
                     for k,meter in losses.items():
-                        status += 'bs_{}={:.3f} ep_{}={:.3f} '.format(
-                            k,meter.val, k,meter.avg)
+                        status += 'ep_{}={:.3f} '.format( k,meter.avg)
 
                     train_epochs.set_description(status)
 
@@ -301,7 +300,7 @@ def train_voc_demo(cfg):
                                  rank=args.local_rank
                                  )
     valloader = make_mutilscale_voc_loader(os.path.join(train_root,'VOC2007_test.txt'),
-                                 img_size=[(512,512)],
+                                 img_size=patch_size,
                                  batch_size=16,
                                  train=False
                                 )

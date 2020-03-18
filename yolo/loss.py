@@ -13,109 +13,169 @@ class yolov1_loss(nn.Module):
         self.l_noobj = l_noobj
         self.class_num = cls_num
 
+    def get_kp_torch(self, pred, conf, topk=100):
+        b, c, h, w = pred.shape
+        pred = pred.contiguous().view(-1)
+        pred[pred < conf] = 0
+        score, topk_idx = torch.topk(pred, k=topk)
 
-    def loss_cls(self,pred,target):
+        batch = topk_idx / (h * w * c)
 
-        pos_mask = target > 0
+        cls = (topk_idx - batch * h * w * c) / (h * w)
 
-        pos_pred = pred[pos_mask]
-        pos_target = target[pos_mask]
-        neg_pred = pred[pos_mask==False]
-        neg_target = target[pos_mask==False]
+        channel = (topk_idx - batch * h * w * c) - (cls * h * w)
 
-        loss_pos = F.mse_loss(pos_pred, pos_target, reduction='sum') * 3
-        loss_neg = F.mse_loss(neg_pred, neg_target, reduction='sum')
-        loss =  loss_neg + loss_pos
+        x = channel % w
+        y = channel / w
 
-        return loss
+        return x.view(-1), y.view(-1), cls.view(-1), batch.view(-1)
 
-    """
-    pred = (b,2*4,7,7)
-    target = (b,2*4,7,7)
-    """
-    def loss_offsets(self,pred,target):
-        pos_mask = target > 0
+    def offset2box(self,box,cx,cy):
 
-        pos_pred = pred[pos_mask]#.view(-1,4)
-        pos_target = target[pos_mask]#.view(-1,4)
-        neg_pred = pred[pos_mask==False]
-        neg_target = target[pos_mask==False]
+        box[:, 0] = cx - box[:, 0]
+        box[:, 1] = cy - box[:, 1]
+        box[:, 2] = box[:, 2] * box[:, 2]
+        box[:, 3] = box[:, 3] * box[:, 3]
 
-        loss_pos = F.mse_loss(pos_pred, pos_target, reduction='sum') * 3
-        loss_neg = F.mse_loss(neg_pred, neg_target, reduction='sum')
-        loss =  loss_neg + loss_pos
+        """
+        cxcywh -> xywh -> xyxy
+        """
 
-        return loss
+        box[:, 0] = box[:, 0] - box[:, 2] / 2
+        box[:, 1] = box[:, 1] - box[:, 3] / 2
+        box[:, 2] = box[:, 0] + box[:, 2]
+        box[:, 3] = box[:, 1] + box[:, 3]
 
-    """
-    pred = (b,2,7,7)
-    target = (b,2,7,7)
-    """
-    def loss_response(self,pred,target):
+        return box
 
-        pos_mask = target > 0
+    def compute_iou(self, box1, box2):
+        '''Compute the intersection over union of two set of boxes, each box is [x1,y1,x2,y2].
+        Args:
+          box1: (tensor) bounding boxes, sized [N,4].
+          box2: (tensor) bounding boxes, sized [M,4].
+        Return:
+          (tensor) iou, sized [N,M].
+        '''
 
+        lt = torch.max(
+            box1[:, :2],  # [N,2] -> [N,1,2] -> [N,M,2]
+            box2[:, :2],  # [M,2] -> [1,M,2] -> [N,M,2]
+        )
 
+        rb = torch.min(
+            box1[:, 2:],  # [N,2] -> [N,1,2] -> [N,M,2]
+            box2[:, 2:],  # [M,2] -> [1,M,2] -> [N,M,2]
+        )
 
-        pos_pred = pred[pos_mask]
-        pos_target = target[pos_mask]
-        neg_pred = pred[pos_mask==False]
-        neg_target = target[pos_mask==False]
+        wh = rb - lt  # [N,M,2]
+        wh[wh < 0] = 0  # clip at 0
+        inter = wh[:, 0] * wh[:, 1]  # [N,M]
 
-        loss_pos = F.mse_loss(pos_pred, pos_target, reduction='sum') * 3
-        loss_neg = F.mse_loss(neg_pred, neg_target, reduction='sum')
+        area1 = (box1[:, 2] - box1[:, 0]) * (box1[:, 3] - box1[:, 1])  # [N,]
+        area2 = (box2[:, 2] - box2[:, 0]) * (box2[:, 3] - box2[:, 1])  # [M,]
 
-        loss =  loss_neg + loss_pos
-
-        return loss
+        iou = inter / (area1 + area2 - inter)
+        return iou
 
     def forward(self,pred,target):
         pred_cls, pred_response, pred_bboxes = pred
         label_cls, label_response, label_bboxes = target
+
+        B_size = pred_cls.shape[0]
+
         device = pred_cls.get_device()
         label_cls = label_cls.to(device)
         label_response = label_response.to(device)
         label_bboxes = label_bboxes.to(device)
 
-        loss_obj = self.loss_response(pred_response, label_response)
-        loss_cls = self.loss_cls(pred_cls, label_cls)
-        loss_offset = self.loss_offsets(pred_bboxes, label_bboxes)
-        #loss_all  = loss_obj + loss_cls + loss_offset
+        with torch.no_grad():
+            tmp_respone =label_response.sum(dim=1).unsqueeze(dim=1)
+            k = tmp_respone.sum()
+            x_list,y_list,c_list,b_list = self.get_kp_torch(tmp_respone,conf=0.5,topk=int(k))
 
-        return {'l_obj': loss_obj, 'l_cls': loss_cls, 'l_offset': loss_offset}
+
+        t_responses = label_response[b_list,:,y_list,x_list]
+        p_responses = pred_response[b_list,:,y_list,x_list]
+
+        t_boxes = label_bboxes[b_list, :, y_list, x_list]
+        p_boxes = pred_bboxes[b_list, :, y_list, x_list]
+
+        t_classes = label_cls[b_list, :, y_list, x_list]
+        p_classes = pred_cls[b_list, :, y_list, x_list]
+
+        loss_pos_response = 0
+        loss_pos_offset = 0
+        loss_pos_cls = 0
+        for cx,cy,t_offset,p_offset,t_res,p_res,t_cls,p_cls in zip(x_list,y_list,t_boxes,p_boxes,\
+                                             t_responses, p_responses, \
+                                             t_classes,p_classes
+                                        ):
+            if t_res.sum() < 0.5:
+                break
+
+            t_offset = t_offset.view(-1,4)
+            p_offset = p_offset.view(-1,4)
+
+            with torch.no_grad():
+                t_box = self.offset2box(t_offset.clone().float(), cx, cy).to(device)
+                p_box = self.offset2box(p_offset.clone().float(), cx, cy).to(device)
+                iou = self.compute_iou(t_box,p_box)
+            #print(iou)
+            idx = iou.argmax()
+            p_res = p_res[idx]
+            loss_pos_response += F.mse_loss(p_res,iou[idx],reduction='sum')
+            loss_pos_offset += F.mse_loss(t_offset[idx],p_offset[idx],reduction='sum')
+            loss_pos_cls += F.mse_loss(p_cls,t_cls,reduction='sum')
+
+
+        neg_mask = label_response < 1
+        neg_pred = pred_response[neg_mask]
+        neg_target = label_response[neg_mask]
+
+        loss_neg_response = F.mse_loss(neg_pred, neg_target, reduction='sum') / B_size
+        loss_pos_response = loss_pos_response / B_size
+        loss_pos_offset = loss_pos_offset / B_size
+        loss_pos_cls = loss_pos_cls / B_size
+        loss_obj = loss_neg_response + loss_pos_response
+
+
+        return {'l_obj': loss_obj, 'l_cls': loss_pos_cls, 'l_offset': loss_pos_offset}
+
 
 if __name__ == '__main__':
     test_loss = yolov1_loss(2, 5, 0.5)
 
     batch_size = 7
 
-    label_cls = torch.zeros(batch_size, 7, 7, 20)
-    label_bbox = torch.zeros(batch_size, 7, 7, 4 * 2)
-    label_response = torch.zeros(batch_size, 7, 7, 2)
+    label_cls = torch.zeros(batch_size, 20, 7, 7)
+    label_bbox = torch.zeros(batch_size,  4 * 2, 7, 7)
+    label_response = torch.zeros(batch_size,  2 , 7, 7)
 
-    label_response[0, 5, 3, :] = 1
-    label_bbox[0, 5, 3, 0] = 0.1
-    label_bbox[0, 5, 3, 1] = 0.1
-    label_bbox[0, 5, 3, 2] = 0.2
-    label_bbox[0, 5, 3, 3] = 0.3
-    label_bbox[0, 5, 3, 4] = 0.1
-    label_bbox[0, 5, 3, 5] = 0.1
-    label_bbox[0, 5, 3, 6] = 0.2
-    label_bbox[0, 5, 3, 7] = 0.3
 
-    pred_cls = torch.zeros(batch_size, 7, 7, 20)
-    pred_bbox = torch.zeros(batch_size, 7, 7, 4 * 2)
-    pred_response = torch.zeros(batch_size, 7, 7, 2)
+    label_cls[0, 1, 5, 3] = 1
+    label_response[0, :, 5, 3] = 1
+    label_bbox[0, 0, 5, 3] = 0.1
+    label_bbox[0, 1, 5, 3] = 0.1
+    label_bbox[0, 2, 5, 3] = 0.2
+    label_bbox[0, 3, 5, 3] = 0.3
+    label_bbox[0, 4, 5, 3] = 0.1
+    label_bbox[0, 5, 5, 3] = 0.1
+    label_bbox[0, 6, 5, 3] = 0.2
+    label_bbox[0, 7, 5, 3] = 0.3
+
+    pred_cls = torch.zeros(batch_size, 20, 7, 7).to('cuda')
+    pred_bbox = torch.zeros(batch_size, 4 * 2, 7, 7).to('cuda')
+    pred_response = torch.zeros(batch_size, 2, 7, 7).to('cuda')
 
     #pred_response[0, 5, 3, :] = 1
-    pred_bbox[0, 5, 3, 0] = 0.1
-    pred_bbox[0, 5, 3, 1] = 0.1
-    pred_bbox[0, 5, 3, 2] = 0.2
-    pred_bbox[0, 5, 3, 3] = 0.3
-    pred_bbox[0, 5, 3, 4] = 0.1
-    pred_bbox[0, 5, 3, 5] = 0.1
-    pred_bbox[0, 5, 3, 6] = 0.2
-    pred_bbox[0, 5, 3, 7] = 0.3
+    pred_bbox[0, 0, 5, 3] = 0.1
+    pred_bbox[0, 1, 5, 3] = 0.1
+    pred_bbox[0, 2, 5, 3] = 0.2
+    pred_bbox[0, 3, 5, 3] = 0.3
+    pred_bbox[0, 4, 5, 3] = 0.1
+    pred_bbox[0, 5, 5, 3] = 0.1
+    pred_bbox[0, 6, 5, 3] = 0.2
+    pred_bbox[0, 7, 5, 3] = 0.3
 
 
     pred = (pred_cls, pred_response, pred_bbox)

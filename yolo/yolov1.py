@@ -49,15 +49,35 @@ class YOLO(nn.Module):
         self.local_layer.add_module('block_4', conv_block(1024, 1024, 3, False, 1))
         fill_fc_weights(self.local_layer)
 
+        '''
         self.reg_layer = nn.Sequential()
         self.reg_layer.add_module('local_layer', nn.Linear(1024 * 7 * 7, 4096))
         self.reg_layer.add_module('leaky_local', nn.LeakyReLU(0.1, inplace=True))
         self.reg_layer.add_module('dropout', nn.Dropout(0.5))
         fill_fc_weights(self.reg_layer)
-
         self.cls_pred =  nn.Linear(4096, self.cls_num * self.scale_size * self.scale_size)
         self.response_pred = nn.Linear(4096, self.bbox_num * self.scale_size * self.scale_size)
         self.offset_pred = nn.Linear(4096, self.bbox_num * 4 * self.scale_size * self.scale_size)
+        '''
+        self.cls_pred = nn.Sequential(
+                                nn.Conv2d(1024,256,3,stride=1, padding=1),
+                                nn.BatchNorm2d(256),
+                                nn.ReLU(),
+                                nn.Conv2d(256, self.cls_num, 1, stride=1, padding=0, bias=False)
+        )
+        self.response_pred = nn.Sequential(
+                                nn.Conv2d(1024,256,3,stride=1, padding=1, bias=False),
+                                nn.BatchNorm2d(256),
+                                nn.ReLU(),
+                                nn.Conv2d(256, self.bbox_num , 1, stride=1, padding=0, bias=False)
+        )
+        self.offset_pred = nn.Sequential(
+                                nn.Conv2d(1024,256,3,stride=1, padding=1),
+                                nn.BatchNorm2d(256),
+                                nn.ReLU(),
+                                nn.Conv2d(256, self.bbox_num * 4, 1, stride=1, padding=0, bias=False)
+        )
+
         fill_fc_weights(self.cls_pred)
         fill_fc_weights(self.response_pred)
         fill_fc_weights(self.offset_pred)
@@ -66,14 +86,11 @@ class YOLO(nn.Module):
         B,w,h,c = x.shape
         img_size = (w,h)
         output = self.backbone(x)
-        output = self.local_layer(output).view(B,-1)
-        #print(output.shape)
-        output = self.reg_layer(output)
-        #print(output.shape)
+        output = self.local_layer(output)
 
-        pred_cls = self.cls_pred(output).view(B,self.cls_num,self.scale_size,self.scale_size)
-        pred_response = self.response_pred(output).view(B,self.bbox_num,self.scale_size,self.scale_size)
-        pred_bbox = self.offset_pred(output).view(B,self.bbox_num*4,self.scale_size,self.scale_size)
+        pred_cls = self.cls_pred(output)
+        pred_response = self.response_pred(output)
+        pred_bbox = self.offset_pred(output)
 
         if target is None:
             output = []
@@ -81,7 +98,8 @@ class YOLO(nn.Module):
                 cls = pred_cls[bs,:,:,:]
                 objness = pred_response[bs,:,:,:]
                 bbox = pred_bbox[bs,:,:,:]
-                output.append(yolo_decoder((cls,objness,bbox),img_size,conf,nms_threshold,topk))
+                pred = (cls,objness,bbox)
+                output.append(yolo_decoder(pred,img_size,conf,topk,nms_threshold))
             return output
 
         else:
@@ -94,11 +112,8 @@ class YOLO(nn.Module):
 if __name__ == '__main__':
     net = YOLO(20)
 
-    c, r, bb = net(torch.randn(2, 3, 448, 448))
+    net(torch.randn(2, 3, 448, 448))
 
-    print(c.size())
-    print(r.size())
-    print(bb.size())
 
 
 
