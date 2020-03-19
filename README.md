@@ -15,7 +15,7 @@ I replace FC layer with Conv Layer to save memory. And you can also training wit
 - *Pytorch 1.3 or higher*  
 - *[apex](https://github.com/NVIDIA/apex)*  
   
-## Install   
+## Install & Train
 ### Install Apex  
 ```  
 git clone https://github.com/NVIDIA/apex  
@@ -64,10 +64,10 @@ cat VOC2007_train.txt VOC2012_train.txt VOC2007_val.txt VOC2012_val.txt >> train
 vis_detector.ipynb
 ```
  
-### Samples:  
+## Samples:  
 ![imgs](https://github.com/Tshzzz/pytorch_yolov1/raw/master/samples/dog.jpg)  
 ![imgs](https://github.com/Tshzzz/pytorch_yolov1/raw/master/samples/person.jpg)  
 ![imgs](https://github.com/Tshzzz/pytorch_yolov1/raw/master/samples/horses.jpg)
 
-### Reference
+## Reference
 [maskrcnn_benchmark](https://github.com/facebookresearch/maskrcnn-benchmark)
