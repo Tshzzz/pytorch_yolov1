@@ -6,13 +6,13 @@ import cv2
 import random
 import numpy as np
 import math
-from yolo.encoder import yolo_encoder
+from yolo.encoder import yolo_encoder_old
 
 class MutilScaleBatchCollator(object):
     def __init__(self,img_size,train,encoder=None):
         self.img_size = img_size
         self.train = train
-        self.encoder = yolo_encoder#encoder
+        self.encoder = yolo_encoder_old#encoder
     # TODO padding img to the same size
     # TODO Training with original size
     def covert_img_tensor(self,img):

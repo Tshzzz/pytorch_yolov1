@@ -7,9 +7,9 @@ Created on Fri Mar 16 14:38:10 2018
 
 import torch
 import torch.nn as nn
-from yolo.decoder import yolo_decoder
+from yolo.decoder import yolo_decoder_old
 from yolo.darknet import darknet_19,conv_block
-from yolo.loss import yolov1_loss
+from yolo.old_loss import yolov1_loss
 
 def create_yolov1(cfg):
     cls_num = cfg['class_num']
@@ -81,6 +81,13 @@ class YOLO(nn.Module):
         fill_fc_weights(self.cls_pred)
         fill_fc_weights(self.response_pred)
         fill_fc_weights(self.offset_pred)
+        cx = torch.linspace(0.5 / scale_size, (scale_size-0.5) / scale_size, steps=scale_size).\
+            view(-1, scale_size).repeat((scale_size, 1)).view(scale_size, scale_size, -1)
+        cy = torch.linspace(0.5 / scale_size, (scale_size-0.5) / scale_size, steps=scale_size).\
+            view(scale_size, -1).repeat((1, scale_size)).view(scale_size, scale_size, -1)
+        zz = torch.zeros_like(cx)
+        self.anchor = torch.cat((cx, cy,zz,zz), 2)
+        self.anchor = self.anchor.repeat((1,1,bbox_num))
 
     def forward(self, x, target=None,conf=0.02, topk=100, nms_threshold=0.5):
         B, c, h, w = x.shape
@@ -88,9 +95,12 @@ class YOLO(nn.Module):
         output = self.backbone(x)
         output = self.local_layer(output)
 
-        pred_cls = self.cls_pred(output)
-        pred_response = self.response_pred(output)
-        pred_bbox = self.offset_pred(output)
+        pred_cls = self.cls_pred(output).permute(0,2,3,1).contiguous()
+        pred_response = self.response_pred(output).permute(0,2,3,1).contiguous()
+        pred_bbox = self.offset_pred(output).permute(0,2,3,1).contiguous()
+        anchors = self.anchor.repeat((B, 1, 1, 1)).to(pred_bbox.device)
+        pred_bbox[:,:,:,:] += anchors
+
 
         if target is None:
             output = []
@@ -99,7 +109,7 @@ class YOLO(nn.Module):
                 objness = pred_response[bs,:,:,:]
                 bbox = pred_bbox[bs,:,:,:]
                 pred = (cls,objness,bbox)
-                output.append(yolo_decoder(pred,img_size,conf,topk,nms_threshold))
+                output.append(yolo_decoder_old(pred,img_size,conf,topk,nms_threshold))
             return output
 
         else:
