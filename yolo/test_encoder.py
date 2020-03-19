@@ -27,7 +27,11 @@ def test_encoder_decoder():
         gt_info[fileID] = meta['boxlist']
         scale_gt = meta['boxlist'].copy()
 
-        target = yolo_encoder(scale_gt,7,4,len(classes))
+        cls,obj,box = yolo_encoder(scale_gt,7,2,len(classes))
+        target_cls = torch.from_numpy(cls).float()
+        target_obj = torch.from_numpy(obj).float()
+        target_box = torch.from_numpy(box).float()
+        target = (target_cls,target_obj,target_box)
         box = yolo_decoder(target,(meta['img_width'],meta['img_height']))
 
         predictions.append([fileID,box])

@@ -30,12 +30,12 @@ class yolov1_loss(nn.Module):
 
         return x.view(-1), y.view(-1), cls.view(-1), batch.view(-1)
 
-    def offset2box(self,box,cx,cy):
-
+    def offset2box(self,box,cx,cy,ceil_size):
+        (w,h) = ceil_size
         box[:, 0] = cx - box[:, 0]
         box[:, 1] = cy - box[:, 1]
-        box[:, 2] = box[:, 2] * box[:, 2]
-        box[:, 3] = box[:, 3] * box[:, 3]
+        box[:, 2] = (box[:, 2] * box[:, 2]) * w
+        box[:, 3] = (box[:, 3] * box[:, 3]) * h
 
         """
         cxcywh -> xywh -> xyxy
@@ -81,8 +81,11 @@ class yolov1_loss(nn.Module):
         pred_cls, pred_response, pred_bboxes = pred
         label_cls, label_response, label_bboxes = target
 
-        B_size = pred_cls.shape[0]
+        B_size,cls_num,h,w = label_cls.shape
+        ceil_size = (w,h)
 
+
+        box_num = label_response.shape[1]
         device = pred_cls.get_device()
         label_cls = label_cls.to(device)
         label_response = label_response.to(device)
@@ -91,7 +94,7 @@ class yolov1_loss(nn.Module):
         with torch.no_grad():
             tmp_respone =label_response.sum(dim=1).unsqueeze(dim=1)
             k = tmp_respone.sum()
-            x_list,y_list,c_list,b_list = self.get_kp_torch(tmp_respone,conf=0.5,topk=int(k))
+            x_list,y_list,c_list,b_list = self.get_kp_torch(tmp_respone,conf=0.5,topk=int(k/box_num))
 
 
         t_responses = label_response[b_list,:,y_list,x_list]
@@ -106,6 +109,7 @@ class yolov1_loss(nn.Module):
         loss_pos_response = 0
         loss_pos_offset = 0
         loss_pos_cls = 0
+        #TODO no loop
         for cx,cy,t_offset,p_offset,t_res,p_res,t_cls,p_cls in zip(x_list,y_list,t_boxes,p_boxes,\
                                              t_responses, p_responses, \
                                              t_classes,p_classes
@@ -117,24 +121,22 @@ class yolov1_loss(nn.Module):
             p_offset = p_offset.view(-1,4)
 
             with torch.no_grad():
-                t_box = self.offset2box(t_offset.clone().float(), cx, cy).to(device)
-                p_box = self.offset2box(p_offset.clone().float(), cx, cy).to(device)
+                t_box = self.offset2box(t_offset.clone().float(), cx, cy,ceil_size).to(device)
+                p_box = self.offset2box(p_offset.clone().float(), cx, cy,ceil_size).to(device)
                 iou = self.compute_iou(t_box,p_box)
-            #print(iou)
-            idx = iou.argmax()
-            p_res = p_res[idx]
-            loss_pos_response += F.mse_loss(p_res,iou[idx],reduction='sum')
-            loss_pos_offset += F.mse_loss(t_offset[idx],p_offset[idx],reduction='sum')
-            loss_pos_cls += F.mse_loss(p_cls,t_cls,reduction='sum')
 
+            idx = iou.argmax()
+            loss_pos_response += F.mse_loss(p_res[idx],iou[idx],reduction='sum')
+            loss_pos_offset += F.mse_loss(p_offset[idx],t_offset[idx],reduction='sum')
+            loss_pos_cls += F.mse_loss(p_cls,t_cls,reduction='sum')
 
         neg_mask = label_response < 1
         neg_pred = pred_response[neg_mask]
         neg_target = label_response[neg_mask]
 
-        loss_neg_response = F.mse_loss(neg_pred, neg_target, reduction='sum') / B_size
+        loss_neg_response = F.mse_loss(neg_pred, neg_target, reduction='sum') / B_size * 0.5
         loss_pos_response = loss_pos_response / B_size
-        loss_pos_offset = loss_pos_offset / B_size
+        loss_pos_offset = loss_pos_offset / B_size * 5
         loss_pos_cls = loss_pos_cls / B_size
         loss_obj = loss_neg_response + loss_pos_response
 

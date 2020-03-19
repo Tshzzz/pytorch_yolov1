@@ -27,6 +27,7 @@ def yolo_decoder(pred, img_size, conf=0.02, topk=100, nms_threshold=0.5):
 
     pred_cls, pred_response, pred_bboxes = pred
     class_num, h, w = pred_cls.shape
+
     x_list, y_list, b_list = get_top_torch(pred_response, conf=conf, topk=topk)
 
     collect_box = defaultdict(list)
@@ -48,6 +49,9 @@ def yolo_decoder(pred, img_size, conf=0.02, topk=100, nms_threshold=0.5):
         cy = y - oy
         bw = bw * bw
         bh = bh * bh
+        bw *= w
+        bh *= h
+
 
         x1 = torch.clamp(cx - bw / 2, 0, w).unsqueeze(dim=0)
         y1 = torch.clamp(cy - bh / 2, 0, h).unsqueeze(dim=0)
@@ -87,5 +91,6 @@ def yolo_decoder(pred, img_size, conf=0.02, topk=100, nms_threshold=0.5):
         box.add_field('labels', np.asarray([0.]))
 
     box.resize(img_size)
-
+    #print(box.box)
+    #d
     return box

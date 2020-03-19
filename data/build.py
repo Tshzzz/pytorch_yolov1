@@ -28,7 +28,7 @@ class MutilScaleBatchCollator(object):
         images = []
         targets = []
 
-        if self.train and random.random() > 0.5:
+        if False:#self.train and random.random() > 0.5:
             max_size = max([max(info['img_width'],info['img_height']) for info in meta])
             max_size = math.ceil(max_size / 32) * 32
             for info in meta:
@@ -48,7 +48,7 @@ class MutilScaleBatchCollator(object):
             for info in meta:
                 img = info['img']
                 img = cv2.resize(img, img_size)
-                img = torch.from_numpy(img).permute(2, 0, 1).float()
+                img = torch.from_numpy(img).permute(2, 0, 1).float() /255.
                 images.append(img)
                 gt_list = info['boxlist'].copy()
                 gt_list.resize(img_size)
@@ -71,9 +71,9 @@ class MutilScaleBatchCollator(object):
                 target_obj.append(obj)
                 target_box.append(box)
 
-            target_cls = torch.from_numpy(np.array(target_cls))
-            target_obj = torch.from_numpy(np.array(target_obj))
-            target_box = torch.from_numpy(np.array(target_box))
+            target_cls = torch.from_numpy(np.array(target_cls)).float()
+            target_obj = torch.from_numpy(np.array(target_obj)).float()
+            target_box = torch.from_numpy(np.array(target_box)).float()
             targets = [target_cls,target_obj,target_box]
 
 

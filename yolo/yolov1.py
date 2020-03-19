@@ -83,7 +83,7 @@ class YOLO(nn.Module):
         fill_fc_weights(self.offset_pred)
 
     def forward(self, x, target=None,conf=0.02, topk=100, nms_threshold=0.5):
-        B,w,h,c = x.shape
+        B, c, h, w = x.shape
         img_size = (w,h)
         output = self.backbone(x)
         output = self.local_layer(output)
