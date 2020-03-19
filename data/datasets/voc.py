@@ -5,8 +5,6 @@ import random
 from data.datasets._utils import get_random_crop_tran,get_max_overlap,random_affine,Grid
 import torch
 
-from pycocotools.coco import COCO
-
 class VOCDatasets(data.Dataset):
     def __init__(self, list_file,train=False):
 
@@ -83,7 +81,7 @@ class VOCDatasets(data.Dataset):
         #if random.random() > 0.5:
         #    img,gt_list = random_affine(img,gt_list,degrees=5, translate=.1, scale=.1, shear=2, border=0)
 
-        if random.random() > 0.5:
+        if random.random() > 0.2:
             tmp_boxes = gt_list.box
             if tmp_boxes.shape[0] >= 3:
 

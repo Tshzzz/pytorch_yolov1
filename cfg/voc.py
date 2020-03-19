@@ -1,11 +1,10 @@
 train_cfg = dict()
-train_cfg['lr'] = [1e-2, 1e-5]
+train_cfg['lr'] = [1e-3, 1e-5]
 train_cfg['epochs'] = 75
-train_cfg['milestone'] = [10,20,40,60]
+train_cfg['milestone'] = [40,60]
 train_cfg['gamma'] = 0.5
-train_cfg['batch_size'] = 1
+train_cfg['batch_size'] = 20
 train_cfg['gpu_id'] = [0,1]
-train_cfg['scale'] = [8,16,32,64,128]
 train_cfg['out_dir'] = 'experiment/VOCNet'
 train_cfg['resume'] = False
 train_cfg['use_sgd'] = True
@@ -28,6 +27,9 @@ model_cfg['backbone'] = 19
 model_cfg['box_num'] = 2
 model_cfg['ceil_size'] = 7
 model_cfg['pretrained'] = None
+model_cfg['l_coord'] = 5
+model_cfg['l_noobj'] = 0.5
+model_cfg['conv_mode'] = True
 
 cfg = dict()
 

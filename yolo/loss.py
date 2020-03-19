@@ -1,17 +1,12 @@
-
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
 
-
-
 class yolov1_loss(nn.Module):
-    def __init__(self, B, l_coord, l_noobj, cls_num=20):
+    def __init__(self, l_coord, l_noobj):
         super(yolov1_loss, self).__init__()
-        self.B = B
         self.l_coord = l_coord
         self.l_noobj = l_noobj
-        self.class_num = cls_num
 
     def get_kp_torch(self, pred, conf, topk=100):
         b, c, h, w = pred.shape
@@ -134,16 +129,10 @@ class yolov1_loss(nn.Module):
         neg_pred = pred_response[neg_mask]
         neg_target = label_response[neg_mask]
 
-        loss_neg_response = F.mse_loss(neg_pred, neg_target, reduction='sum') / B_size * 0.5
+        loss_neg_response = F.mse_loss(neg_pred, neg_target, reduction='sum') / B_size * self.l_noobj
         loss_pos_response = loss_pos_response / B_size
-        loss_pos_offset = loss_pos_offset / B_size * 5
-
-
-        obj_cls_mask = (label_response[:, 0, :, :] > 0).unsqueeze(1).expand_as(label_cls)
-        obj_class_pred = pred_cls[obj_cls_mask].view(-1, self.class_num)
-        obj_class_target = label_cls[obj_cls_mask].view(-1, self.class_num)
-        loss_pos_cls = F.mse_loss(obj_class_pred, obj_class_target, reduction='sum') / B_size
-
+        loss_pos_offset = loss_pos_offset / B_size * self.l_coord
+        loss_pos_cls = loss_pos_cls / B_size
 
         loss_obj = loss_neg_response + loss_pos_response
 
@@ -151,7 +140,7 @@ class yolov1_loss(nn.Module):
 
 
 if __name__ == '__main__':
-    test_loss = yolov1_loss(2, 5, 0.5)
+    test_loss = yolov1_loss(5, 0.5)
 
     batch_size = 7
 

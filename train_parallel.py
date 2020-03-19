@@ -6,7 +6,7 @@ import torch.distributed as dist
 import numpy as np
 import random
 from datetime import datetime
-from data.build import make_dist_voc_loader,make_mutilscale_voc_loader
+from data.build import make_dist_voc_loader
 
 from yolo import create_yolov1
 
@@ -265,7 +265,6 @@ def train_voc_demo(cfg):
     out_dir = train_cfg['out_dir']
     resume = train_cfg['resume']
     use_sgd = train_cfg['use_sgd']
-    scale = train_cfg['scale']
     mile = train_cfg['milestone']
     gamma = train_cfg['gamma']
     train_root = train_cfg['dataroot']
@@ -293,16 +292,17 @@ def train_voc_demo(cfg):
 
     ModelG = ModelG.to(device)
 
-    trnloader = make_dist_voc_loader(os.path.join(train_root,'train.txt'),
+    trnloader = make_dist_voc_loader(os.path.join(train_root,'train.txt'),model_cfg,
                                  img_size=patch_size,
                                  batch_size=bs,
                                  train=True,
                                  rank=args.local_rank
                                  )
-    valloader = make_mutilscale_voc_loader(os.path.join(train_root,'VOC2007_test.txt'),
+    valloader = make_dist_voc_loader(os.path.join(train_root,'VOC2007_test.txt'),model_cfg,
                                  img_size=patch_size,
                                  batch_size=16,
-                                 train=False
+                                 train=False,
+                                 rank=args.local_rank
                                 )
 
 

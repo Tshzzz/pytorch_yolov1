@@ -6,29 +6,22 @@ import cv2
 import random
 import numpy as np
 import math
-from yolo.encoder import yolo_encoder_old
+from yolo.encoder import yolo_encoder
 
 class MutilScaleBatchCollator(object):
-    def __init__(self,img_size,train,encoder=None):
+    def __init__(self,img_size,train,encoder_param):
         self.img_size = img_size
         self.train = train
-        self.encoder = yolo_encoder_old#encoder
-    # TODO padding img to the same size
-    # TODO Training with original size
-    def covert_img_tensor(self,img):
-        img = torch.from_numpy(img).permute(2, 0, 1).float()
-        #[0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
-        img[0, :, :] = (img[0, :, :] - 0.485) / 1
-        img[0, :, :] = (img[0, :, :] - 0.456) / 1
-        img[0, :, :] = (img[0, :, :] - 0.406) / 1
-
-        return img
+        self.encoder = yolo_encoder
+        self.cls_num = encoder_param['class_num']
+        self.box_num = encoder_param['box_num']
+        self.ceil_size = encoder_param['ceil_size']
 
     def process_mask(self,meta,img_size):
         images = []
         targets = []
 
-        if False:#self.train and random.random() > 0.5:
+        if self.train and random.random() > 0.5:
             max_size = max([max(info['img_width'],info['img_height']) for info in meta])
             max_size = math.ceil(max_size / 32) * 32
             for info in meta:
@@ -66,7 +59,7 @@ class MutilScaleBatchCollator(object):
             target_obj = []
             target_box = []
             for t in targets:
-                cls,obj,box = self.encoder(t)
+                cls,obj,box = self.encoder(t,self.ceil_size,self.box_num,self.cls_num)
                 target_cls.append(cls)
                 target_obj.append(obj)
                 target_box.append(box)
@@ -80,28 +73,14 @@ class MutilScaleBatchCollator(object):
         return batch_imgs,targets,meta
 
 
-def make_mutilscale_voc_loader(list_path,train=False,img_size=[(512,512)],batch_size=4,num_workers=4):
-
-    dataset = VOCDatasets(list_path,train)
-    collator = MutilScaleBatchCollator(img_size,train)
-    data_loader = data.DataLoader(dataset=dataset,
-                                  batch_size=batch_size,
-                                  shuffle=train,
-                                  num_workers=num_workers,
-                                  collate_fn=collator,
-                                  pin_memory=True
-                                  )
-    return data_loader
 
 
-
-
-def make_dist_voc_loader(list_path,train=False,img_size=[(512,512)],
+def make_dist_voc_loader(list_path,encoder_param,train=False,img_size=[(448,448)],
                          batch_size=4,num_workers=4,num_replicas=2,rank=0):
 
 
     dataset = VOCDatasets(list_path,train)
-    collator = MutilScaleBatchCollator(img_size,train)
+    collator = MutilScaleBatchCollator(img_size,train,encoder_param)
     sampler =DistributedSampler(dataset,num_replicas=num_replicas,rank=rank,shuffle=train)
 
     data_loader = data.DataLoader(dataset=dataset,
