@@ -33,7 +33,7 @@ class MutilScaleBatchCollator(object):
                 gt_list.size = (max_size,max_size)
 
                 padding_img = cv2.resize(padding_img, img_size)
-                padding_img = torch.from_numpy(padding_img).permute(2,0,1).float()
+                padding_img = torch.from_numpy(padding_img).permute(2,0,1).float() /255.
                 images.append(padding_img)
                 gt_list.resize(img_size)
                 targets.append(gt_list)

@@ -18,8 +18,9 @@ def create_yolov1(cfg):
     pretrained = cfg['pretrained']
     l_coord = cfg['l_coord']
     l_noobj = cfg['l_noobj']
+    l_obj = cfg['l_obj']
     conv_mode = cfg['conv_mode']
-    model = YOLO(cls_num,box_num,ceil_size,pretrained,l_coord,l_noobj,conv_mode)
+    model = YOLO(cls_num,box_num,ceil_size,pretrained,l_coord,l_obj,l_noobj,conv_mode)
 
     return model
 
@@ -35,6 +36,7 @@ class YOLO(nn.Module):
     def __init__(self, cls_num, bbox_num=2, scale_size=7,
                  pretrained=None,
                  l_coord=5,
+                 l_obj=1,
                  l_noobj=0.5,
                  conv_mode=False
                  ):
@@ -46,7 +48,7 @@ class YOLO(nn.Module):
         if pretrained is not None:
             self.backbone.load_weight(pretrained)
 
-        self.loss = yolov1_loss(l_coord, l_noobj)
+        self.loss = yolov1_loss(l_coord,l_obj, l_noobj)
         self.scale_size = scale_size
         self.bbox_num = bbox_num
         self.last_output = (5 * self.bbox_num + self.cls_num)
@@ -74,7 +76,7 @@ class YOLO(nn.Module):
                                     nn.Conv2d(256, self.cls_num, 1, stride=1, padding=0)
             )
             self.response_pred = nn.Sequential(
-                                    nn.Conv2d(1024,256,3,stride=1, padding=1, bias=False),
+                                    nn.Conv2d(1024,256,3,stride=1, padding=1),
                                     nn.ReLU(),
                                     nn.Conv2d(256, self.bbox_num , 1, stride=1, padding=0)
             )
