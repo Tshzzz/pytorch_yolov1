@@ -101,11 +101,11 @@ class YOLO(nn.Module):
             pred_response = self.response_pred(output)
             pred_bbox = self.offset_pred(output)
         else:
-            output = self.local_layer(output).view(B,-1)
+            output = output.view(B,-1)
             output = self.reg_layer(output)
-            pred_cls = self.cls_pred(output).view(B,self.scale_size,self.scale_size,self.cls_num)
-            pred_response = self.response_pred(output).view(B,self.scale_size,self.scale_size,self.bbox_num)
-            pred_bbox = self.offset_pred(output).view(B,self.scale_size,self.scale_size,self.bbox_num*4)
+            pred_cls = self.cls_pred(output).view(B,self.cls_num,self.scale_size,self.scale_size)
+            pred_response = self.response_pred(output).view(B,self.bbox_num,self.scale_size,self.scale_size)
+            pred_bbox = self.offset_pred(output).view(B,self.bbox_num*4,self.scale_size,self.scale_size)
 
         if target is None:
             output = []

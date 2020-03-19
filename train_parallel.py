@@ -221,7 +221,7 @@ class train_engine(object):
                     self.logger.add_scalar(tag, value.avg, epoch)
                 torch.save(checkpoint, '{}/model_checkpoint.pth'.format(self.save_dir))
 
-            if args.local_rank == 0 and epoch % self.save_iter == 0 and self.valload is not None:
+            if args.local_rank == 0 and epoch % self.save_iter == 0 and self.valload is not None and epoch > 5:
 
                 self.Model.eval()
                 result = training_eval(self.Model, self.valload, self.classes, self.device)
