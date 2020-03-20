@@ -57,7 +57,7 @@ cat VOC2007_train.txt VOC2012_train.txt VOC2007_val.txt VOC2012_val.txt >> train
   
 ### Test on VOCdatasets  
 ```
- python metric.py
+ bash test.sh
 ```
 ### Demo 
 ```
