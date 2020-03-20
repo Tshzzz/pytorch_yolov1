@@ -1,21 +1,23 @@
 from data.datasets import *
 from torch.utils import data
 import torch
-from  torch.utils.data.distributed import DistributedSampler
+from  data.sampler import TrainingSampler,InferenceSampler
 import cv2
 import random
 import numpy as np
 import math
 from yolo.encoder import yolo_encoder
 
+
 class MutilScaleBatchCollator(object):
     def __init__(self,img_size,train,encoder_param):
         self.img_size = img_size
         self.train = train
         self.encoder = yolo_encoder
-        self.cls_num = encoder_param['class_num']
-        self.box_num = encoder_param['box_num']
-        self.ceil_size = encoder_param['ceil_size']
+        if encoder_param:
+            self.cls_num = encoder_param['class_num']
+            self.box_num = encoder_param['box_num']
+            self.ceil_size = encoder_param['ceil_size']
 
     def process_mask(self,meta,img_size):
         images = []
@@ -54,7 +56,7 @@ class MutilScaleBatchCollator(object):
         images,targets = self.process_mask(meta,img_size=sized)
         batch_imgs = torch.cat([a.unsqueeze(0) for a in images])
 
-        if self.encoder:
+        if self.train and self.encoder:
             target_cls = []
             target_obj = []
             target_box = []
@@ -75,13 +77,16 @@ class MutilScaleBatchCollator(object):
 
 
 
-def make_dist_voc_loader(list_path,encoder_param,train=False,img_size=[(448,448)],
-                         batch_size=4,num_workers=4,num_replicas=2,rank=0):
+def make_dist_voc_loader(list_path,encoder_param=None,train=False,img_size=[(448,448)],
+                         batch_size=4,num_workers=4):
 
 
     dataset = VOCDatasets(list_path,train)
     collator = MutilScaleBatchCollator(img_size,train,encoder_param)
-    sampler =DistributedSampler(dataset,num_replicas=num_replicas,rank=rank,shuffle=train)
+    if train:
+        sampler =TrainingSampler(len(dataset),shuffle=train)
+    else:
+        sampler = InferenceSampler(len(dataset))
 
     data_loader = data.DataLoader(dataset=dataset,
                                   batch_size=batch_size,
