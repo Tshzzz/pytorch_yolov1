@@ -6,7 +6,7 @@ I replace FC layer with Conv Layer to save memory. And you can also training wit
 | Model             | mAp.        |  
 | ----------------- | ----------- |  
 | My model fc layer   | -         |  
-| My model conv layer | 0.64      |  
+| My model conv layer | 0.66      |  
 | Origin papar        | 0.63      |  
   
   
