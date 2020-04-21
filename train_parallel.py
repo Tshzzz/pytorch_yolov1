@@ -7,7 +7,7 @@ import numpy as np
 import random
 from datetime import datetime
 from data.build import make_dist_voc_loader
-
+from collections import defaultdict
 from yolo import create_yolov1
 
 torch.manual_seed(666)
@@ -165,15 +165,12 @@ class train_engine(object):
             self.start_epoch += 1
 
 
-
     def train(self):
-        #TODO full speed validation
-        scheduler = self.scheduler
         best_mean_val = 0
         train_epochs = tqdm.tqdm(range(self.start_epoch,self.epochs),ncols=40)
         for epoch in train_epochs:
-            losses = dict()
-            for idx,(img,gt_info,img_info) in enumerate(self.trainload):
+            losses = defaultdict(AverageMeter)
+            for idx,(img,gt_info) in enumerate(self.trainload):
                 img = img.to(self.device)
                 loss_dict = self.Model(img,gt_info)
 
@@ -184,31 +181,20 @@ class train_engine(object):
                     scaled_loss.backward()
 
                 self.optim.step()
-
                 for k in loss_dict.keys():
-                    if k in losses.keys():
-                        reduced_loss = reduce_tensor(loss_dict[k].data)
-                        losses[k].update(to_python_float(reduced_loss), img.size(0))
-                    else:
-                        losses[k] = AverageMeter()
-                        reduced_loss = reduce_tensor(loss_dict[k].data)
-                        losses[k].update(to_python_float(reduced_loss), img.size(0))
+                    reduced_loss = reduce_tensor(loss_dict[k].data)
+                    losses[k].update(to_python_float(reduced_loss), img.size(0))
 
-                torch.cuda.synchronize()
                 if args.local_rank == 0:
                     status = '[{}] lr={:.5f} '.format(
-                        epoch + 1, scheduler.get_lr()[0])
-
+                        epoch + 1, self.scheduler.get_lr()[0])
                     for k,meter in losses.items():
-                        status += 'ep_{}={:.3f} '.format( k,meter.avg)
-
+                        status += 'ep_{}={:.3f} '.format(k,meter.avg)
                     train_epochs.set_description(status)
 
-            torch.cuda.synchronize()
-
+            self.scheduler.step(epoch)
             if args.local_rank == 0:
-                scheduler.step(epoch)
-                self.logger.add_scalar('lr: ', scheduler.get_lr()[0], epoch)
+                self.logger.add_scalar('lr: ', self.scheduler.get_lr()[0], epoch)
                 checkpoint = {
                     'model': self.Model.state_dict(),
                     'optimizer': self.optim.state_dict(),
@@ -243,6 +229,7 @@ class train_engine(object):
                     )
                 self.logger.add_scalar('mAp', mean_val, epoch)
                 self.logger.add_scalar('bestmAp', best_mean_val, epoch)
+
         print('copy best model to logger dir')
         print(best_mean_val)
         if args.local_rank == 0:
@@ -268,7 +255,7 @@ def train_voc_demo(cfg):
     mile = train_cfg['milestone']
     gamma = train_cfg['gamma']
     train_root = train_cfg['dataroot']
-    patch_size = train_cfg['patch_size']
+    img_size = train_cfg['img_size']
 
 
     out_dir = out_dir + '/' + model_name
@@ -292,20 +279,20 @@ def train_voc_demo(cfg):
 
     ModelG = ModelG.to(device)
 
-    trnloader = make_dist_voc_loader(os.path.join(train_root,'train.txt'),model_cfg,
-                                 img_size=patch_size,
+    trnloader = make_dist_voc_loader(os.path.join(train_root,'train.txt'),
+                                 img_size=img_size,
                                  batch_size=bs,
                                  train=True,
                                  )
-    valloader = make_dist_voc_loader(os.path.join(train_root,'VOC2007_test.txt'),model_cfg,
-                                 img_size=patch_size,
+    valloader = make_dist_voc_loader(os.path.join(train_root,'VOC2007_test.txt'),
+                                 img_size=img_size,
                                  batch_size=16,
                                  train=False,
                                 )
 
 
     engine = train_engine(epochs,ModelG,OptimG,trnloader,
-                          valloader,patch_size,
+                          valloader,img_size,
                           out_dir,logger,classes,resume)
     engine.setup(mile,gamma)
     engine.train()

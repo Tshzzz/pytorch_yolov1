@@ -78,8 +78,9 @@ class VOCDatasets(data.Dataset):
             img = img * 255
             img = img.numpy()
             img = img.astype(np.uint8)
-        #if random.random() > 0.5:
-        #    img,gt_list = random_affine(img,gt_list,degrees=5, translate=.1, scale=.1, shear=2, border=0)
+
+        if random.random() > 0.2:
+            img,gt_list = random_affine(img,gt_list,degrees=5, translate=.1, scale=.1, shear=2, border=0)
 
         if random.random() > 0.2:
             tmp_boxes = gt_list.box
@@ -103,7 +104,7 @@ class VOCDatasets(data.Dataset):
                     img[fill_bk[1]:fill_bk[3], fill_bk[0]:fill_bk[2], :] = noise
 
 
-        if random.random() > 0.5:
+        if random.random() > 0.2:
 
             matrix = get_random_crop_tran(img)
             h, w, _ = img.shape

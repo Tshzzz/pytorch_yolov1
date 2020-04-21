@@ -6,83 +6,73 @@ import cv2
 import random
 import numpy as np
 import math
-from yolo.encoder import yolo_encoder
 
 
 class MutilScaleBatchCollator(object):
-    def __init__(self,img_size,train,encoder_param):
-        self.img_size = img_size
+    def __init__(self,img_size,train):
+        self.img_size = [a for a in range(min(img_size),max(img_size)+32,32)]
+        print(self.img_size)
         self.train = train
-        self.encoder = yolo_encoder
-        if encoder_param:
-            self.cls_num = encoder_param['class_num']
-            self.box_num = encoder_param['box_num']
-            self.ceil_size = encoder_param['ceil_size']
+        self.MEAN_RGB = np.array([123.675, 116.28, 103.53])
+        self.VAR_RGB = np.array([58.395, 57.12, 57.375])
+        self.keep_ratio = True
 
-    def process_mask(self,meta,img_size):
+
+    def normlize(self,img,mean,std,rgb=True):
+
+        img = np.float32(img) if img.dtype != np.float32 else img.copy()
+        if rgb:
+            cv2.cvtColor(img, cv2.COLOR_BGR2RGB, img)  # inplace
+
+        mean = np.float64(mean.reshape(1, -1))
+        stdinv = 1 / np.float64(std.reshape(1, -1))
+        cv2.subtract(img, mean, img)  # inplace
+        cv2.multiply(img, stdinv, img)  # inplace
+
+        return img
+
+    def process_image(self,meta,sized):
         images = []
-        targets = []
 
-        if self.train and random.random() > 0.5:
-            max_size = max([max(info['img_width'],info['img_height']) for info in meta])
-            max_size = math.ceil(max_size / 32) * 32
-            for info in meta:
-                img = info['img']
-                h,w,c = img.shape
-                padding_img = np.zeros((max_size,max_size,c),dtype=np.uint8)
-                padding_img[:h,:w,:c] = img
-                gt_list = info['boxlist'].copy()
-                gt_list.size = (max_size,max_size)
 
-                padding_img = cv2.resize(padding_img, img_size)
-                padding_img = torch.from_numpy(padding_img).permute(2,0,1).float() /255.
-                images.append(padding_img)
-                gt_list.resize(img_size)
-                targets.append(gt_list)
-        else:
-            for info in meta:
-                img = info['img']
-                img = cv2.resize(img, img_size)
-                img = torch.from_numpy(img).permute(2, 0, 1).float() /255.
-                images.append(img)
-                gt_list = info['boxlist'].copy()
-                gt_list.resize(img_size)
-                targets.append(gt_list)
-        return images,targets
+        for info in meta:
+            img = info['img']
+            padding_img = img.copy()
+            info['padding_width'] = padding_img.shape[1]
+            info['padding_height'] = padding_img.shape[0]
+            img_size = [sized, sized]
+
+            img_size[0] = math.ceil(img_size[0] / 32) * 32
+            img_size[1] = math.ceil(img_size[1] / 32) * 32
+            img_size = (img_size[0],img_size[1])
+
+            padding_img = cv2.resize(padding_img, img_size)
+            padding_img = self.normlize(padding_img,self.MEAN_RGB,self.VAR_RGB)
+            padding_img = torch.from_numpy(padding_img).permute(2,0,1).float()
+            images.append(padding_img)
+
+        return images
 
     def __call__(self, batch):
         meta = list(batch)
-        sized = random.choice(self.img_size)
-        images,targets = self.process_mask(meta,img_size=sized)
+        if self.train:
+            sized = random.choice(self.img_size)
+        else:
+            sized = sum(self.img_size) / float(len(self.img_size))
+
+        images = self.process_image(meta,sized)
         batch_imgs = torch.cat([a.unsqueeze(0) for a in images])
 
-        if self.train and self.encoder:
-            target_cls = []
-            target_obj = []
-            target_box = []
-            for t in targets:
-                cls,obj,box = self.encoder(t,self.ceil_size,self.box_num,self.cls_num)
-                target_cls.append(cls)
-                target_obj.append(obj)
-                target_box.append(box)
-
-            target_cls = torch.from_numpy(np.array(target_cls)).float()
-            target_obj = torch.from_numpy(np.array(target_obj)).float()
-            target_box = torch.from_numpy(np.array(target_box)).float()
-            targets = [target_cls,target_obj,target_box]
-
-
-        return batch_imgs,targets,meta
+        return batch_imgs,meta
 
 
 
-
-def make_dist_voc_loader(list_path,encoder_param=None,train=False,img_size=[(448,448)],
+def make_dist_voc_loader(list_path,train=False,img_size=[(448,448)],
                          batch_size=4,num_workers=4):
 
 
     dataset = VOCDatasets(list_path,train)
-    collator = MutilScaleBatchCollator(img_size,train,encoder_param)
+    collator = MutilScaleBatchCollator(img_size,train)
     if train:
         sampler =TrainingSampler(len(dataset),shuffle=train)
     else:

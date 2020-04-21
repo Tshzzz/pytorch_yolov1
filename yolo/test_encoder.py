@@ -3,8 +3,11 @@ from tqdm import tqdm
 from metric import base_val
 from data.datasets import VOCDatasets
 from data.evaluate.voc_eval import voc_evaluation
-from yolo.encoder import yolo_encoder_old
-from yolo.decoder import yolo_decoder_old
+from yolo.encoder import yolo_encoder
+from yolo.decoder import yolo_decoder
+
+
+
 
 def test_encoder_decoder():
 
@@ -27,12 +30,12 @@ def test_encoder_decoder():
         gt_info[fileID] = meta['boxlist']
         scale_gt = meta['boxlist'].copy()
 
-        cls,obj,box = yolo_encoder_old(scale_gt,7,2,len(classes))
+        cls,obj,box = yolo_encoder(scale_gt,(7,7),2,len(classes))
         target_cls = torch.from_numpy(cls).float()
         target_obj = torch.from_numpy(obj).float()
         target_box = torch.from_numpy(box).float()
         target = (target_cls,target_obj,target_box)
-        box = yolo_decoder_old(target,(meta['img_width'],meta['img_height']))
+        box = yolo_decoder(target,(meta['img_width'],meta['img_height']))
 
         predictions.append([fileID,box])
 
