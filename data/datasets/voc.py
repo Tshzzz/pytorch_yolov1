@@ -82,27 +82,6 @@ class VOCDatasets(data.Dataset):
         if random.random() > 0.2:
             img,gt_list = random_affine(img,gt_list,degrees=5, translate=.1, scale=.1, shear=2, border=0)
 
-        if random.random() > 0.2:
-            tmp_boxes = gt_list.box
-            if tmp_boxes.shape[0] >= 3:
-
-                tmp_labels = gt_list.get_field('labels')
-                rm_idx = random.randint(0, gt_list.box.shape[0] - 1)
-                fill_bk = tmp_boxes[rm_idx]
-                boxes = np.delete(tmp_boxes, rm_idx, axis=0)
-
-                labels = tmp_labels[:rm_idx] + tmp_labels[rm_idx + 1:]
-                max_iou = get_max_overlap(fill_bk,boxes)
-
-                if max_iou < 0.3:
-                    gt_list.box = boxes
-                    gt_list.add_field('labels',labels)
-                    fill_bk = fill_bk.astype(np.int)
-                    w = int(fill_bk[2] - fill_bk[0])
-                    h = int(fill_bk[3] - fill_bk[1])
-                    noise = np.random.normal(0, 255, (h, w, 3))
-                    img[fill_bk[1]:fill_bk[3], fill_bk[0]:fill_bk[2], :] = noise
-
 
         if random.random() > 0.2:
 
