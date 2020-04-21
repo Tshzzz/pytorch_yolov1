@@ -36,6 +36,8 @@ def yolo_decoder(pred, img_size, conf=0.02, nms_threshold=0.5):
         bbox = pred_bboxes[mask_a]
         cls_prob = score[mask_a]
         if bbox.shape[0] > 0:
+            bbox[:, 2] = bbox[:, 2] * bbox[:, 2]
+            bbox[:, 3] = bbox[:, 3] * bbox[:, 3]
 
             bbox[:, 0] = bbox[:, 0] - bbox[:, 2] / 2
             bbox[:, 1] = bbox[:, 1] - bbox[:, 3] / 2

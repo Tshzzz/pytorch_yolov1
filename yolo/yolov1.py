@@ -100,7 +100,7 @@ class YOLO(nn.Module):
         return anchor_xy
 
 
-    def forward(self, x, target=None,conf=0.02, topk=100, nms_threshold=0.5):
+    def forward(self, x, target=None,conf=0.02, nms_threshold=0.5):
         B, c, h, w = x.shape
         device = x.get_device()
         img_size = (w,h)
@@ -123,7 +123,7 @@ class YOLO(nn.Module):
             pred_response = self.response_pred(output).view(B,self.bbox_num,ceil_h, ceil_w)
             pred_bbox = self.offset_pred(output).view(B,self.bbox_num*4,ceil_h, ceil_w)
             pred_bbox = pred_bbox.view(B, self.bbox_num, 4, ceil_h, ceil_w)
-            pred_bbox[:, :, :2, :, :] += anchor_xy
+            pred_bbox[:,:,:2,:,:] += anchor_xy
             pred_bbox = pred_bbox.view(B, -1, ceil_h, ceil_w)
 
         if target is None:
@@ -133,7 +133,7 @@ class YOLO(nn.Module):
                 objness = pred_response[bs,:,:,:]
                 bbox = pred_bbox[bs,:,:,:]
                 pred = (cls,objness,bbox)
-                output.append(yolo_decoder(pred,img_size,conf,topk,nms_threshold))
+                output.append(yolo_decoder(pred,img_size,conf,nms_threshold))
             return output
         else:
             pred = (pred_cls,pred_response,pred_bbox)

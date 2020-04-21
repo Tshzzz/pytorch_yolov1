@@ -23,8 +23,8 @@ def yolo_encoder(box_list,ceil_size,box_num,cls_num):
             bb_response[j, local_y, local_x] = 1
             bb_boxes[j * 4 + 0, local_y, local_x] = (gt[2] + gt[0])/2
             bb_boxes[j * 4 + 1, local_y, local_x] = (gt[3] + gt[1])/2
-            bb_boxes[j * 4 + 2, local_y, local_x] = max((gt[2] - gt[0]),0.01)
-            bb_boxes[j * 4 + 3, local_y, local_x] = max((gt[3] - gt[1]),0.01)
+            bb_boxes[j * 4 + 2, local_y, local_x] = np.sqrt(max((gt[2] - gt[0]),0.01))
+            bb_boxes[j * 4 + 3, local_y, local_x] = np.sqrt(max((gt[3] - gt[1]),0.01))
 
         bb_class[l, local_y, local_x] = 1
     boxes = (bb_class, bb_response, bb_boxes)
